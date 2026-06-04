@@ -19,7 +19,7 @@ const CheckoutManager = {
             
             if (!this.checkoutData || !this.checkoutData.items || this.checkoutData.items.length === 0) {
                 Utils.showToast('Không có sản phẩm để thanh toán', 'error');
-                window.location.href = '/cart';
+                window.location.href = './cart.html';
                 return;
             }
 
@@ -35,7 +35,7 @@ const CheckoutManager = {
         } catch (error) {
             console.error('Initialize checkout error:', error);
             Utils.showToast('Lỗi khi tải trang thanh toán', 'error');
-            window.location.href = '/cart';
+            window.location.href = './cart.html';
         }
     },
 
@@ -156,7 +156,7 @@ const CheckoutManager = {
             ${this.checkoutData.discount > 0 ? `
                 <div class="total-row">
                     <span>Giảm giá (${this.checkoutData.discountCode}):</span>
-                    <span style="color: #27ae60;">-${Utils.formatCurrency(this.checkoutData.discount)}</span>
+                    <span class="text-success">-${Utils.formatCurrency(this.checkoutData.discount)}</span>
                 </div>
             ` : ''}
             
@@ -370,12 +370,15 @@ const CheckoutManager = {
 
     // Quay lại giỏ hàng
     backToCart() {
-        window.location.href = '/cart';
+        window.location.href = './cart.html';
     }
 };
 
 // Initialize khi trang load
 document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof Components !== 'undefined') {
+        Components.initLayout({ activePage: 'products', subNavTitle: 'Thanh toán' });
+    }
     await CheckoutManager.initialize();
 });
 

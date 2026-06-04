@@ -486,7 +486,7 @@ const CartManager = {
             ${this.cart.discount > 0 ? `
                 <div class="summary-row">
                     <span>Giảm giá (${this.cart.discountCode}):</span>
-                    <span style="color: #27ae60;">-${Utils.formatCurrency(this.cart.discount)}</span>
+                    <span class="text-success">-${Utils.formatCurrency(this.cart.discount)}</span>
                 </div>
             ` : ''}
             
@@ -510,7 +510,7 @@ const CartManager = {
                     </button>
                 </div>
                 ${this.cart.discountCode ? `
-                    <button style="margin-top: 10px; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 14px;"
+                    <button class="remove-discount-btn" type="button"
                             onclick="CartManager.removeDiscount()">
                         <i class="fas fa-times"></i> Xóa mã giảm giá
                     </button>
@@ -533,10 +533,10 @@ const CartManager = {
         } else {
             container.innerHTML = `
                 <div class="empty-cart">
-                    <i class="fas fa-shopping-cart" style="font-size: 4rem; color: #ccc;"></i>
+                    <div class="empty-cart-icon"><i class="fas fa-shopping-cart"></i></div>
                     <h3>Giỏ hàng trống</h3>
                     <p>Hãy thêm sản phẩm vào giỏ hàng để tiếp tục mua sắm</p>
-                    <a href="/" class="btn btn-primary">Tiếp tục mua sắm</a>
+                    <a href="./index.html" class="btn btn-primary">Tiếp tục mua sắm</a>
                 </div>
             `;
         }
@@ -692,6 +692,9 @@ window.addToCart = async (product, quantity = 1, options = {}) => {
 
 // Khởi tạo khi trang load
 document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof Components !== 'undefined') {
+        Components.initLayout({ activePage: 'products', subNavTitle: 'Giỏ hàng' });
+    }
     await CartManager.initialize();
 });
 

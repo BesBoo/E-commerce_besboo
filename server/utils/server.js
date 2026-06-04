@@ -201,7 +201,7 @@ app.get('/debug/routes', (req, res) => {
 });
 
 // Serve frontend pages
-const pages = ['index', 'cart', 'checkout', 'login', 'register', 'profile', 'admin', 'product','contact'];
+const pages = ['index', 'cart', 'checkout', 'login', 'register', 'profile', 'admin', 'product', 'product-detail', 'contact'];
 
 pages.forEach(page => {
     app.get(`/${page}`, (req, res) => {
@@ -210,8 +210,12 @@ pages.forEach(page => {
     app.get(`/${page}.html`, (req, res) => res.redirect(`/${page}`));
 });
 
-// Product detail page
+// Product detail — /product/:id → product-detail.html?id=:id
 app.get('/product/:id', (req, res) => {
+    const productId = req.params.id;
+    if (/^\d+$/.test(productId)) {
+        return res.redirect(`/product-detail?id=${productId}`);
+    }
     res.sendFile(path.join(CLIENT_DIR, 'product.html'));
 });
 

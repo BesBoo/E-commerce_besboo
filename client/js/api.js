@@ -51,11 +51,124 @@ const apiRequest = async (endpoint, options = {}) => {
         // Handle token expiry
         if (error.message.includes('Invalid token') || error.message.includes('token')) {
             clearAuth();
-            window.location.href = '/login';
+            window.location.href = './login.html';
         }
         
         throw error;
     }
+};
+
+const getMockCatalog = () => window.BesBooData || null;
+
+const getLocalCart = () => {
+    try {
+        const savedCart = localStorage.getItem('cart');
+        if (!savedCart) {
+            return { items: [], subtotal: 0, total: 0, discount: 0, discountCode: null };
+        }
+
+        const cart = JSON.parse(savedCart);
+        const items = Array.isArray(cart.items) ? cart.items : [];
+        return {
+            items,
+            subtotal: cart.subtotal || 0,
+            total: cart.total || 0,
+            discount: cart.discount || 0,
+            discountCode: cart.discountCode || null
+        };
+    } catch (error) {
+        console.error('Get local cart error:', error);
+        return { items: [], subtotal: 0, total: 0, discount: 0, discountCode: null };
+    }
+};
+
+const saveLocalCart = (cart) => {
+    const items = Array.isArray(cart.items) ? cart.items : [];
+    const subtotal = items.reduce((total, item) => {
+        const finalPrice = item.price * (1 - (item.discount_percent || 0) / 100);
+        return total + finalPrice * item.quantity;
+    }, 0);
+
+    const normalizedCart = {
+        ...cart,
+        items,
+        subtotal,
+        total: Math.max(0, subtotal - (cart.discount || 0)),
+        discount: cart.discount || 0,
+        discountCode: cart.discountCode || null
+    };
+
+    localStorage.setItem('cart', JSON.stringify(normalizedCart));
+    localStorage.setItem(cartAPI.GUEST_CART_KEY, JSON.stringify({
+        items: items.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            color: item.color || null,
+            size: item.size || null
+        }))
+    }));
+
+    return normalizedCart;
+};
+
+const getProductForCart = async (item) => {
+    if (item.name && item.price) return item;
+
+    const mockCatalog = getMockCatalog();
+    if (mockCatalog) {
+        const response = mockCatalog.getProduct(item.product_id);
+        if (response.success && response.product) return response.product;
+    }
+
+    try {
+        const response = await productsAPI.getProduct(item.product_id);
+        return response.product || response;
+    } catch {
+        return item;
+    }
+};
+
+const addToLocalCart = async (item) => {
+    const product = await getProductForCart(item);
+    if (!product || !product.product_id || !product.name || !product.price) {
+        throw new Error('Không tìm thấy thông tin sản phẩm để thêm vào giỏ hàng');
+    }
+
+    const quantity = Math.max(1, parseInt(item.quantity || 1));
+    const color = item.color || null;
+    const size = item.size || null;
+    const cart = getLocalCart();
+    const existingItem = cart.items.find((cartItem) =>
+        Number(cartItem.product_id) === Number(product.product_id)
+        && (cartItem.color || null) === color
+        && (cartItem.size || null) === size
+    );
+
+    if (existingItem) {
+        existingItem.quantity += quantity;
+    } else {
+        cart.items.push({
+            product_id: product.product_id,
+            name: product.name,
+            price: product.price,
+            image_url: product.image_url,
+            color,
+            size,
+            quantity,
+            stock: product.stock || 99,
+            brand: product.brand,
+            category_name: product.category_name,
+            discount_percent: product.discount_percent || 0
+        });
+    }
+
+    const savedCart = saveLocalCart(cart);
+    return {
+        success: true,
+        message: 'Đã thêm sản phẩm vào giỏ hàng',
+        items: savedCart.items,
+        total_items: savedCart.items.reduce((total, cartItem) => total + cartItem.quantity, 0)
+    };
 };
 
 // Auth API
@@ -127,22 +240,112 @@ const authAPI = {
 // Products API
 const productsAPI = {
     async getProducts(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return await apiRequest(`/products?${queryString}`);
+        try {
+            const queryString = new URLSearchParams(params).toString();
+            const response = await apiRequest(`/products?${queryString}`);
+
+            if (!response || !Array.isArray(response.products)) {
+                throw new Error('Invalid products response');
+            }
+
+            return response;
+        } catch (error) {
+            const mockCatalog = getMockCatalog();
+            if (mockCatalog) {
+                console.warn('Using mock products data:', error.message);
+                return mockCatalog.getProducts(params);
+            }
+
+            throw error;
+        }
     },
 
     async getProduct(id) {
-        // Fix: Đảm bảo sử dụng đúng parameter name từ backend
-        console.log('API: Getting product with ID:', id);
-        return await apiRequest(`/products/${id}`);
+        const mockCatalog = getMockCatalog();
+
+        const normalizeProductResponse = (response) => {
+            if (!response || response.success === false) return null;
+
+            const product = response.product
+                || (response.product_id != null || response.id != null ? response : null);
+
+            if (!product) return null;
+
+            const productId = product.product_id ?? product.id;
+            return {
+                success: true,
+                product: {
+                    ...product,
+                    product_id: productId,
+                    id: productId
+                }
+            };
+        };
+
+        const loadFromMock = () => {
+            if (!mockCatalog) return null;
+            const mockResponse = mockCatalog.getProduct(id);
+            return normalizeProductResponse(mockResponse);
+        };
+
+        try {
+            const response = await apiRequest(`/products/${id}`);
+            const normalized = normalizeProductResponse(response);
+
+            if (normalized) return normalized;
+
+            const mockFallback = loadFromMock();
+            if (mockFallback) {
+                console.warn('API product response invalid, using mock catalog');
+                return mockFallback;
+            }
+
+            throw new Error('Invalid product response');
+        } catch (error) {
+            const mockFallback = loadFromMock();
+            if (mockFallback) {
+                console.warn('Using mock product detail:', error.message);
+                return mockFallback;
+            }
+
+            throw error;
+        }
     },
 
     async getFeaturedProducts() {
-        return await apiRequest('/products/featured');
+        try {
+            const response = await apiRequest('/products/featured');
+            if (!response || !Array.isArray(response.products)) {
+                throw new Error('Invalid featured products response');
+            }
+            return response;
+        } catch (error) {
+            const mockCatalog = getMockCatalog();
+            if (mockCatalog) {
+                console.warn('Using mock featured products:', error.message);
+                return mockCatalog.getFeaturedProducts();
+            }
+
+            throw error;
+        }
     },
 
     async getNewProducts() {
-        return await apiRequest('/products/new');
+        try {
+            const response = await apiRequest('/products/new');
+            if (!response || !Array.isArray(response.products)) {
+                throw new Error('Invalid new products response');
+            }
+            return response;
+        } catch (error) {
+            const mockCatalog = getMockCatalog();
+            if (mockCatalog) {
+                console.warn('Using mock new products:', error.message);
+                return mockCatalog.getNewProducts();
+            }
+
+            throw error;
+        }
     },
 
     async searchProducts(query, filters = {}) {
@@ -176,13 +379,36 @@ const productsAPI = {
         return await apiRequest(`/products/${id}`, {
             method: 'DELETE'
         });
+    },
+
+    async getFilterOptions() {
+        const mockCatalog = getMockCatalog();
+        if (mockCatalog) {
+            return mockCatalog.getFilterOptions();
+        }
+
+        return { brands: [], colors: [], sizes: [] };
     }
 };
 
 // Categories API
 const categoriesAPI = {
     async getCategories() {
-        return await apiRequest('/categories');
+        try {
+            const response = await apiRequest('/categories');
+            if (!response || !Array.isArray(response.categories)) {
+                throw new Error('Invalid categories response');
+            }
+            return response;
+        } catch (error) {
+            const mockCatalog = getMockCatalog();
+            if (mockCatalog) {
+                console.warn('Using mock categories:', error.message);
+                return mockCatalog.getCategories();
+            }
+
+            throw error;
+        }
     },
 
     async createCategory(categoryData) {
@@ -201,6 +427,7 @@ const cartAPI = {
     
     async getCart() {
         const user = getUser();
+        const localCart = getLocalCart();
         
         if (user) {
             // Authenticated user - get cart from server
@@ -214,15 +441,17 @@ const cartAPI = {
                 };
             } catch (error) {
                 console.error('Failed to get cart from server:', error);
-                throw error;
+                return {
+                    ...localCart,
+                    item_count: localCart.items.reduce((total, item) => total + item.quantity, 0),
+                    total_items: localCart.items.reduce((total, item) => total + item.quantity, 0)
+                };
             }
         } else {
-            // Guest user - return mock cart structure to match server response
             return { 
-                items: [], 
-                total: 0, 
-                item_count: 0,
-                total_items: 0  // Keep both for compatibility
+                ...localCart,
+                item_count: localCart.items.reduce((total, item) => total + item.quantity, 0),
+                total_items: localCart.items.reduce((total, item) => total + item.quantity, 0)
             };
         }
     },
@@ -232,12 +461,10 @@ const cartAPI = {
         const user = getUser();
         
         if (!user) {
-            Utils.showToast('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng', 'error');
-            // Redirect to login page
-            setTimeout(() => {
-                window.location.href = '/login.html';
-            }, 1500);
-            return;
+            const response = await addToLocalCart(item);
+            Utils.showToast(response.message, 'success');
+            await this.updateCartCount();
+            return response;
         }
 
         // Validate input data
@@ -449,11 +676,16 @@ const cartAPI = {
         try {
             const user = getUser();
             if (!user) {
-                return 0;
+                return getLocalCart().items.reduce((total, item) => total + item.quantity, 0);
             }
 
-            const response = await apiRequest('/cart/count');
-            return response.total_items || 0;
+            try {
+                const response = await apiRequest('/cart/count');
+                return response.total_items || 0;
+            } catch (error) {
+                console.error('Failed to get cart count from server:', error);
+                return getLocalCart().items.reduce((total, item) => total + item.quantity, 0);
+            }
         } catch (error) {
             console.error('Failed to get cart count:', error);
             return 0;
@@ -524,13 +756,14 @@ const cartAPI = {
             // Check each item availability and stock
             for (const item of cart.items) {
                 try {
-                    const product = await productsAPI.getProduct(item.product_id);
+                    const productResponse = await productsAPI.getProduct(item.product_id);
+                    const product = productResponse.product || productResponse;
                     
-                    if (!product.is_active) {
+                    if (product.is_active === false) {
                         validationErrors.push(`${product.name} không còn bán`);
                     }
                     
-                    if (product.stock < item.quantity) {
+                    if ((product.stock ?? 0) < item.quantity) {
                         validationErrors.push(`${product.name} không đủ hàng (còn: ${product.stock}, yêu cầu: ${item.quantity})`);
                     }
                 } catch (error) {
@@ -663,7 +896,21 @@ const ordersAPI = {
 // Promotions API
 const promotionsAPI = {
     async getPromotions() {
-        return await apiRequest('/promotions');
+        try {
+            const response = await apiRequest('/promotions');
+            if (!response || !Array.isArray(response.promotions)) {
+                throw new Error('Invalid promotions response');
+            }
+            return response;
+        } catch (error) {
+            const mockCatalog = getMockCatalog();
+            if (mockCatalog) {
+                console.warn('Using mock promotions:', error.message);
+                return mockCatalog.getPromotions();
+            }
+
+            throw error;
+        }
     },
 
     async validatePromotion(code, orderAmount) {
@@ -816,13 +1063,17 @@ const formatCurrency = (amount) => {
 
 // Format date
 const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat('vi-VN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(dateString);
+    try {
+        return new Intl.DateTimeFormat('vi-VN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(new Date(dateString));
+    } catch (e) {
+        return dateString;
+    }
 };
 
 // Debounce function for search
