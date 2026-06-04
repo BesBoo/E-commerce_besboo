@@ -22,20 +22,13 @@
 *Dưới đây là một số hình ảnh thực tế của dự án thể hiện luồng trải nghiệm người dùng.*
 
 ### 1. Trang chủ (Homepage)
-*(Bạn hãy chụp ảnh màn hình Trang chủ và lưu thành file `home.png` trong thư mục `client/images/screenshots/`)*
-![Homepage Preview](./client/images/screenshots/home.png)
+![Homepage Preview](./client/images/home.png)
 
 ### 2. Danh sách Sản phẩm (Product Listing - PLP)
-*(Bạn hãy chụp ảnh màn hình Trang danh sách sản phẩm với bộ lọc bên trái và lưu thành `plp.png`)*
-![Product Listing Preview](./client/images/screenshots/plp.png)
+![Product Listing Preview](./client/images/product.png)
 
 ### 3. Chi tiết Sản phẩm (Product Detail - PDP)
-*(Bạn hãy chụp ảnh màn hình Trang chi tiết sản phẩm và lưu thành `pdp.png`)*
-![Product Detail Preview](./client/images/screenshots/pdp.png)
-
-### 4. Giỏ hàng & Thanh toán (Cart & Checkout)
-*(Bạn hãy chụp ảnh màn hình Giỏ hàng và lưu thành `cart.png`)*
-![Cart Preview](./client/images/screenshots/cart.png)
+![Product Detail Preview](./client/images/product_details.png)
 
 ---
 
