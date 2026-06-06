@@ -105,7 +105,7 @@
     <script src="./js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            Components.initAuthLayout();
+            Components.initLayout({ subNavTitle: 'Đăng nhập' });
             // Check if already logged in
             if (Auth.isLoggedIn()) {
                 // Redirect to home if already logged in

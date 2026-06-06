@@ -247,9 +247,12 @@
             isLoading = true;
             const productsGrid = document.getElementById('productsGrid');
             
-            // Show loading
-            if (page === 1) {
-                Utils.showLoading(productsGrid);
+            // Always show loading when changing pages
+            Utils.showLoading(productsGrid);
+
+            // Scroll to top of products grid
+            if (page !== currentPage) {
+                productsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
             
             try {
@@ -267,13 +270,8 @@
 
                 const response = await API.products.getProducts(params);
                 
-                if (page === 1) {
-                    // Replace products
-                    renderProducts(response.products);
-                } else {
-                    // Append products (for load more functionality)
-                    appendProducts(response.products);
-                }
+                // Always replace products (never append)
+                renderProducts(response.products);
                 
                 // Update pagination
                 totalPages = response.pagination.total_pages;

@@ -5,21 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký - BesBoo</title>
+    <meta name="description" content="Đăng ký tài khoản BesBoo để trải nghiệm mua sắm thời trang trực tuyến">
+    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <!-- Header -->
-    <header>
-        <div class="header-main">
-            <div class="container">
-                <div class="header-content">
-                    <div class="logo">
-                        <a href="./index.html" style="color:#fff;text-decoration: none;font-weight: bold; font-size: 20px;">&leftarrow; BesBoo</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+<body class="auth-page">
+    <div id="site-header" class="site-header"></div>
 
     <!-- Main Content -->
     <main>
@@ -132,14 +123,13 @@
                     <div class="form-group">
                         <label class="checkbox-wrapper">
                             <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
-                            <span class="checkmark"></span>
                             Tôi đồng ý với &nbsp;<a href="/terms" target="_blank"> Điều khoản dịch vụ</a>&nbsp; và &nbsp;<a href="/privacy" target="_blank">Chính sách bảo mật</a>
                         </label>
                         <div class="error-message" id="agreeTermsError"></div>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100" id="registerBtn">
-                        <span class="btn-text" style="cursor:pointer;">Đăng ký</span>
+                        <span class="btn-text">Đăng ký</span>
                         <span class="btn-loading" style="display: none;">
                             <i class="fas fa-spinner fa-spin"></i> Đang xử lý...
                         </span>
@@ -148,7 +138,6 @@
 
                 <div class="form-footer">
                     <p>Đã có tài khoản? <a href="./login.html" class="login-link">Đăng nhập ngay</a></p>
-                    
                     
                     <div class="social-login">
                         <button class="btn btn-social facebook" type="button">
@@ -165,23 +154,20 @@
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-bottom">
-                <p>&copy; 2024 BesBoo. Tất cả quyền được bảo lưu.</p>
-            </div>
-        </div>
-    </footer>
+    <div id="site-footer"></div>
 
     <!-- Scripts -->
+    <script src="./js/product-data.js"></script>
     <script src="./js/api.js"></script>
+    <script src="./js/components.js"></script>
     <script src="./js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize shared layout
+            Components.initLayout({ subNavTitle: 'Đăng ký' });
+
             // Check if already logged in
             if (Auth.isLoggedIn()) {
-                // Redirect to home if already logged in
                 window.location.href = 'index.html';
                 return;
             }
@@ -426,9 +412,8 @@
         }
 
         function validatePhone(phone, isRealTime = false) {
-            // Vietnamese phone number regex - more flexible
             const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
-            const cleanPhone = phone.replace(/[\s\-]/g, ''); // Remove spaces and dashes
+            const cleanPhone = phone.replace(/[\s\-]/g, '');
             
             if (!phoneRegex.test(cleanPhone)) {
                 showFieldError('phone', 'Số điện thoại không hợp lệ (VD: 0901234567)');
@@ -491,304 +476,7 @@
                 alertContainer.innerHTML = '';
             }
         }
-        function togglePasswordVisibility(inputId, toggleId) {
-            const input = document.getElementById(inputId);
-            const toggle = document.getElementById(toggleId);
-            const icon = toggle.querySelector("i");
-
-            if (input.type === "password") {
-                input.type = "text";
-                icon.classList.replace("fa-eye", "fa-eye-slash");
-            } else {
-                input.type = "password";
-                icon.classList.replace("fa-eye-slash", "fa-eye");
-            }
-        }
-
-        // Gọi khi DOM loaded
-        document.getElementById("passwordToggle").addEventListener("click", () => {
-            togglePasswordVisibility("password", "passwordToggle");
-        });
-        document.getElementById("confirmPasswordToggle").addEventListener("click", () => {
-            togglePasswordVisibility("confirmPassword", "confirmPasswordToggle");
-        });
-
     </script>
 
-    <style>
-        /* Register-specific styles */
-        body {
-            color:#fff;
-            background: #34495e;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;;
-            
-        }
-
-        main {
-            min-height: calc(100vh - 120px); 
-            display: flex;
-            justify-content: center;  
-            align-items: center;
-        }
-
-
-        .register-form {
-            width: 700px;
-            padding: 40px 30px;
-            background: rgba(255, 255, 255, 0.1);  
-            border-color: white;
-            border-radius: 15px;  
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); 
-            backdrop-filter: blur(12px);  
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            animation: fadeIn 0.6s ease-in-out;
-        }
-         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .form-header {
-            color:#fff;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .form-header h2 {
-            color: #fff;
-            margin-bottom: 8px;
-            font-size: 28px;
-        }
-
-        .form-header p {
-            color: #fff;
-            font-size: 16px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .required {
-            color: #e74c3c;
-        }
-
-        .form-text {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #fff;
-        }
-        .form-group label{
-            color:#fff;
-        }
-        .form-group input{
-            width: 310px;
-            padding-right: 40px; 
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: none;
-            outline: none;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 12px;
-            font-size: 14px;
-        }
-        
-
-        .password-input-wrapper {
-            position: relative;
-            width: 100%;
-        }
-        .password-input-wrapper input {
-            width: 310px;
-            padding-right: 40px; 
-            border-radius: 8px;
-            border: none;
-            outline: none;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 12px;
-            font-size: 14px;
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 12px;
-            top: 36%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #7f8c8d;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 4px;
-            transition: color 0.3s;
-        }
-
-        .password-toggle:hover {
-            color: #2c3e50;
-        }
-
-        .checkbox-wrapper {
-            display: flex;
-            align-items: flex-start;
-            cursor: pointer;
-            font-size: 14px;
-            color: #2c3e50;
-            line-height: 1.4;
-        }
-
-        .checkbox-wrapper input[type="checkbox"] {
-            margin-right: 8px;
-            margin-top: 2px;
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-        }
-
-        .checkbox-wrapper a {
-            color: #ff5946;
-            text-decoration: underline;
-        }
-
-        .checkbox-wrapper a:hover {
-            color: #ff4531;
-        }
-
-        .form-footer {
-            color:#fff;
-            margin-top: 30px;
-            text-align: center;
-        }
-
-        .login-link {
-            color: #ff5340;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .login-link:hover {
-            color: #ff4531;
-            text-decoration: underline;
-        }
-
-        
-
-        .social-login {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .btn-social {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 12px;
-            border: 1px solid #ddd;
-            background: white;
-            color: #2c3e50;
-            border-radius: 5px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-
-        .btn-social:hover {
-            background: #f8f9fa;
-            transform: translateY(-1px);
-        }
-
-        .btn-social.facebook {
-            border-color: #4267B2;
-            color: #4267B2;
-            cursor:pointer;
-        }
-
-        .btn-social.facebook:hover {
-            background: #4267B2;
-            color: white;
-        }
-
-        .btn-social.google {
-            border-color: #db4437;
-            color: #db4437;
-            cursor:pointer;
-        }
-
-        .btn-social.google:hover {
-            background: #db4437;
-            color: white;
-        }
-
-        .alert {
-            margin-bottom: 20px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-            
-            .register-form {
-                max-width: 500px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .form-container {
-                margin: 20px;
-                padding: 30px 20px;
-            }
-            
-            .social-login {
-                flex-direction: column;
-            }
-        }
-
-        
-
-        /* Password strength indicator */
-        .password-strength {
-            margin-top: 8px;
-            height: 4px;
-            background: #eee;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .password-strength-bar {
-            height: 100%;
-            transition: all 0.3s;
-        }
-
-        .strength-weak { background: #e74c3c; width: 25%; }
-        .strength-fair { background: #f39c12; width: 50%; }
-        .strength-good { background: #f1c40f; width: 75%; }
-        .strength-strong { background: #27ae60; width: 100%; }
-    </style>
 </body>
 </html>
