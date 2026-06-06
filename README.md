@@ -50,38 +50,9 @@
 
 ---
 
-## 📁 Cấu trúc Thư mục
 
-```text
-BesBoo/
-├── client/                 # Mã nguồn Frontend
-│   ├── css/                # CSS (Design Tokens, Base, Components)
-│   ├── js/                 # Javascript (API, Components, Core Logic)
-│   ├── images/             # Hình ảnh tĩnh
-│   ├── index.html          # Trang chủ (Homepage)
-│   ├── product.html        # Trang danh sách sản phẩm (PLP)
-│   ├── product-detail.html # Trang chi tiết sản phẩm (PDP)
-│   ├── cart.html           # Giỏ hàng
-│   └── checkout.html       # Luồng Thanh toán
-└── index.html              # File điều hướng (Redirect) cho GitHub Pages
-```
-
----
-
-## 💻 Hướng dẫn Cài đặt Local
-
-Để chạy dự án này trên máy tính của bạn:
-
-1. Clone repository về máy:
-   ```bash
-   git clone https://github.com/BesBoo/E-commerce_besboo.git
-   ```
-2. Mở thư mục dự án bằng Code Editor (ví dụ: VS Code).
-3. Sử dụng extension **Live Server** để chạy dự án trực tiếp từ thư mục gốc.
-
----
 
 ## ✍️ Tác giả
 
-Được thiết kế và phát triển bởi **[Tên của bạn]** 
-*Dự án Portfolio ứng tuyển vị trí UI/UX Designer & Frontend Developer.*
+Được thiết kế và phát triển bởi **[BesBoo]** 
+
