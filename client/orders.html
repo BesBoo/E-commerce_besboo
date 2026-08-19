@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý đơn hàng - BesBoo</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .profile-container {
+            padding: 40px 0 80px;
+        }
+        .profile-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 40px;
+        }
+        @media (max-width: 834px) {
+            .profile-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Sidebar Styles (Same as Profile) */
+        .profile-sidebar {
+            background-color: var(--canvas-parchment, #f5f5f7);
+            border-radius: var(--rounded-lg, 18px);
+            padding: 24px;
+            height: fit-content;
+        }
+        .user-info-summary {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--hairline, #e0e0e0);
+        }
+        .user-avatar-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary, #0066cc);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 600;
+            margin: 0 auto 16px;
+        }
+        .user-name-display {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--ink, #1d1d1f);
+            margin-bottom: 4px;
+        }
+        .user-email-display {
+            font-size: 14px;
+            color: var(--ink-muted-80, #333333);
+        }
+        
+        .profile-nav-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .profile-nav-item {
+            margin-bottom: 8px;
+        }
+        .profile-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--ink, #1d1d1f);
+            text-decoration: none;
+            border-radius: var(--rounded-md, 11px);
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .profile-nav-link i {
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+            color: var(--ink-muted-80, #333333);
+        }
+        .profile-nav-link:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+        .profile-nav-link.active {
+            background-color: rgba(0, 102, 204, 0.1);
+            color: var(--primary, #0066cc);
+        }
+        .profile-nav-link.active i {
+            color: var(--primary, #0066cc);
+        }
+        
+        /* Orders Content Styles */
+        .profile-content {
+            background-color: var(--canvas, #ffffff);
+            border-radius: var(--rounded-lg, 18px);
+            border: 1px solid var(--hairline, #e0e0e0);
+            padding: 32px;
+        }
+        .profile-section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--ink, #1d1d1f);
+        }
+
+        .order-card {
+            border: 1px solid var(--hairline, #e0e0e0);
+            border-radius: var(--rounded-lg, 18px);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--hairline, #e0e0e0);
+            margin-bottom: 16px;
+        }
+        .order-id {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--ink, #1d1d1f);
+        }
+        .order-date {
+            font-size: 14px;
+            color: var(--ink-muted-80, #333333);
+            margin-top: 4px;
+        }
+        
+        .order-status {
+            padding: 6px 12px;
+            border-radius: var(--rounded-pill, 9999px);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pending { background-color: #fef9c3; color: #854d0e; }
+        .status-processing { background-color: #e0f2fe; color: #0369a1; }
+        .status-shipped { background-color: #dcfce7; color: #166534; }
+        .status-delivered { background-color: #dcfce7; color: #166534; }
+        .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+
+        .order-items {
+            margin-bottom: 16px;
+        }
+        .order-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--hairline, #e0e0e0);
+        }
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        .order-item-image {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: var(--rounded-sm, 8px);
+            margin-right: 16px;
+            background-color: var(--canvas-parchment, #f5f5f7);
+        }
+        .order-item-details {
+            flex-grow: 1;
+        }
+        .order-item-name {
+            font-weight: 500;
+            color: var(--ink, #1d1d1f);
+            margin-bottom: 4px;
+        }
+        .order-item-meta {
+            font-size: 12px;
+            color: var(--ink-muted-80, #333333);
+        }
+        .order-item-price {
+            font-weight: 600;
+            color: var(--ink, #1d1d1f);
+        }
+
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid var(--hairline, #e0e0e0);
+        }
+        .order-total-label {
+            font-size: 14px;
+            color: var(--ink-muted-80, #333333);
+        }
+        .order-total-amount {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--ink, #1d1d1f);
+        }
+        
+        .empty-orders {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--ink-muted-80, #333333);
+        }
+        .empty-orders i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--hairline, #e0e0e0);
+        }
+        
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 0;
+            color: var(--ink-muted-80, #333333);
+        }
+        .loading-state i {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: var(--primary, #0066cc);
+        }
+    </style>
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main class="profile-container">
+        <div class="container">
+            <!-- Breadcrumb -->
+            <div class="breadcrumb" style="margin-bottom: 24px; font-size: 14px; color: var(--ink-muted-80);">
+                <a href="/" style="color: inherit; text-decoration: none;">Trang chủ</a>
+                <span style="margin: 0 8px;">/</span>
+                <span style="color: var(--ink);">Quản lý đơn hàng</span>
+            </div>
+
+            <div class="profile-layout" id="profileLayout" style="display: none;">
+                <!-- Sidebar -->
+                <aside class="profile-sidebar">
+                    <div class="user-info-summary">
+                        <div class="user-avatar-large" id="sidebarAvatar">?</div>
+                        <div class="user-name-display" id="sidebarName">Đang tải...</div>
+                        <div class="user-email-display" id="sidebarEmail">...</div>
+                    </div>
+                    
+                    <ul class="profile-nav-list">
+                        <li class="profile-nav-item">
+                            <a href="./profile.html" class="profile-nav-link">
+                                <i class="fas fa-user"></i>
+                                Thông tin tài khoản
+                            </a>
+                        </li>
+                        <li class="profile-nav-item">
+                            <a href="./orders.html" class="profile-nav-link active">
+                                <i class="fas fa-shopping-bag"></i>
+                                Quản lý đơn hàng
+                            </a>
+                        </li>
+                        <li class="profile-nav-item" style="margin-top: 24px; border-top: 1px solid var(--hairline, #e0e0e0); padding-top: 8px;">
+                            <a href="#" class="profile-nav-link" id="logoutBtn" style="color: #e74c3c;">
+                                <i class="fas fa-sign-out-alt" style="color: #e74c3c;"></i>
+                                Đăng xuất
+                            </a>
+                        </li>
+                    </ul>
+                </aside>
+
+                <!-- Main Content -->
+                <div class="profile-content">
+                    <h2 class="profile-section-title">Lịch sử đơn hàng</h2>
+                    
+                    <div id="ordersList">
+                        <!-- Orders will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loadingState" class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Đang tải đơn hàng...</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <!-- Scripts -->
+    <script src="./js/product-data.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/components.js"></script>
+    <script src="./js/auth-utils.js"></script>
+    <script src="./js/main.js"></script>
+    <script>
+        // Custom logic to handle orders that will be called inside main.js or here
+        // The implementation details will be handled in setupOrdersPage() in main.js
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof setupOrdersPage === 'function') {
+                setupOrdersPage();
+            }
+        });
+    </script>
+</body>
+</html>

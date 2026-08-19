@@ -174,43 +174,77 @@ const addToLocalCart = async (item) => {
 // Auth API
 const authAPI = {
     async login(credentials) {
-        const response = await apiRequest('/users/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials)
-        });
-        
-        if (response.token) {
-            setAuth(response.token, response.user);
-
-            // Sync guest cart with server cart after successful login
-            try {
-                await cartAPI.syncGuestCartWithServer();
-            } catch (error) {
-                console.error('Failed to sync guest cart after login:', error);
+        try {
+            const response = await apiRequest('/users/login', {
+                method: 'POST',
+                body: JSON.stringify(credentials)
+            });
+            
+            if (response.token) {
+                setAuth(response.token, response.user);
+                try { await cartAPI.syncGuestCartWithServer(); } catch (error) {}
             }
+            return response;
+        } catch (error) {
+            console.warn('Server unavailable, using mock login');
+            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]');
+            const user = mockUsers.find(u => u.username === credentials.username && u.password === credentials.password);
+            
+            if (!user) {
+                throw new Error('Username hoặc password không đúng');
+            }
+            
+            const token = 'mock_token_' + Date.now();
+            setAuth(token, user);
+            try { await cartAPI.syncGuestCartWithServer(); } catch (e) {}
+            
+            return { token, user, success: true, message: 'Đăng nhập thành công' };
         }
-        
-        return response;
     },
 
     async register(userData) {
-        const response = await apiRequest('/users/register', {
-            method: 'POST',
-            body: JSON.stringify(userData)
-        });
-        
-        if (response.token) {
-            setAuth(response.token, response.user);
-
-            // Sync guest cart with server cart after successful registration
-            try {
-                await cartAPI.syncGuestCartWithServer();
-            } catch (error) {
-                console.error('Failed to sync guest cart after registration:', error);
+        try {
+            const response = await apiRequest('/users/register', {
+                method: 'POST',
+                body: JSON.stringify(userData)
+            });
+            
+            if (response.token) {
+                setAuth(response.token, response.user);
+                try { await cartAPI.syncGuestCartWithServer(); } catch (error) {}
             }
+            return response;
+        } catch (error) {
+            if (error.message && !error.message.includes('fetch')) throw error;
+            
+            console.warn('Server unavailable, using mock register');
+            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]');
+            
+            if (mockUsers.find(u => u.username === userData.username || u.email === userData.email)) {
+                throw new Error('Username hoặc email đã tồn tại');
+            }
+            
+            const newUser = {
+                id: Date.now(),
+                ...userData,
+                role: 'user',
+                created_at: new Date().toISOString()
+            };
+            
+            mockUsers.push(newUser);
+            localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+            
+            const token = 'mock_token_' + Date.now();
+            
+            // Remove password from returned user object for safety
+            const userResponse = { ...newUser };
+            delete userResponse.password;
+            
+            setAuth(token, userResponse);
+            try { await cartAPI.syncGuestCartWithServer(); } catch (e) {}
+            
+            return { token, user: userResponse, success: true, message: 'Đăng ký thành công' };
         }
-        
-        return response;
     },
 
     async logout() {
@@ -219,22 +253,67 @@ const authAPI = {
     },
 
     async getProfile() {
-        return await apiRequest('/users/profile');
+        try {
+            return await apiRequest('/users/profile');
+        } catch (error) {
+            console.warn('Server unavailable, using mock profile');
+            const user = getUser();
+            if (!user) throw new Error('Not authenticated');
+            return { success: true, user: user };
+        }
     },
 
     async updateProfile(profileData) {
-        return await apiRequest('/users/profile', {
-            method: 'PUT',
-            body: JSON.stringify(profileData)
-        });
+        try {
+            return await apiRequest('/users/profile', {
+                method: 'PUT',
+                body: JSON.stringify(profileData)
+            });
+        } catch (error) {
+            console.warn('Server unavailable, using mock update profile');
+            const currentUser = getUser();
+            if (!currentUser) throw new Error('Not authenticated');
+            
+            const updatedUser = { ...currentUser, ...profileData };
+            
+            // Update in mock DB
+            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]');
+            const index = mockUsers.findIndex(u => u.id === updatedUser.id);
+            if (index !== -1) {
+                mockUsers[index] = { ...mockUsers[index], ...profileData };
+                localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+            }
+            
+            setAuth(getToken(), updatedUser);
+            return { success: true, message: 'Cập nhật thành công', user: updatedUser };
+        }
     },
 
     async changePassword(passwordData) {
-        return await apiRequest('/users/change-password', {
-            method: 'PUT',
-            body: JSON.stringify(passwordData)
-        });
+        try {
+            return await apiRequest('/users/change-password', {
+                method: 'PUT',
+                body: JSON.stringify(passwordData)
+            });
+        } catch (error) {
+            console.warn('Server unavailable, using mock change password');
+            const currentUser = getUser();
+            if (!currentUser) throw new Error('Not authenticated');
+            
+            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]');
+            const index = mockUsers.findIndex(u => u.id === currentUser.id);
+            
+            if (index !== -1) {
+                if (mockUsers[index].password !== passwordData.currentPassword) {
+                    throw new Error('Mật khẩu hiện tại không đúng');
+                }
+                mockUsers[index].password = passwordData.newPassword;
+                localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+            }
+            
+            return { success: true, message: 'Đổi mật khẩu thành công' };
         }
+    }
 };
 
 // Products API

@@ -341,6 +341,10 @@ function setupPageSpecificFunctions() {
             setupAdminPage();
             break;
             
+        case '/orders':
+            setupOrdersPage();
+            break;
+            
         default:
             if (path.startsWith('/product/')) {
                 setupProductDetailPage();
@@ -445,14 +449,300 @@ function setupCartPage() {
 
 // Profile page functionality
 function setupProfilePage() {
-    // This will be implemented when creating profile.html
-    console.log('Setting up profile page');
+    Components.initLayout({ activePage: 'profile', subNavTitle: 'Tài khoản của tôi' });
+    
+    // Check authentication
+    if (!AuthUtils.protectRoute()) return;
+    
+    const loadingState = document.getElementById('loadingState');
+    const profileLayout = document.getElementById('profileLayout');
+    
+    // Load profile data
+    async function loadProfileData() {
+        try {
+            const response = await API.auth.getProfile();
+            const user = response.user;
+            
+            if (!user) throw new Error('Không thể tải thông tin người dùng');
+            
+            // Populate Sidebar
+            document.getElementById('sidebarAvatar').textContent = AuthUtils.getUserInitials(user);
+            document.getElementById('sidebarName').textContent = AuthUtils.getUserDisplayName(user);
+            document.getElementById('sidebarEmail').textContent = user.email || '';
+            
+            // Populate Form
+            document.getElementById('username').value = user.username || '';
+            document.getElementById('email').value = user.email || '';
+            document.getElementById('fullName').value = user.full_name || '';
+            document.getElementById('phone').value = user.phone || '';
+            document.getElementById('address').value = user.address || '';
+            
+            // Show content
+            loadingState.style.display = 'none';
+            profileLayout.style.display = 'grid';
+            
+        } catch (error) {
+            console.error('Error loading profile:', error);
+            Utils.showToast('Không thể tải thông tin cá nhân. Vui lòng thử lại sau.', 'error');
+        }
+    }
+    
+    loadProfileData();
+    
+    // Handle Profile Form Submit
+    const profileForm = document.getElementById('profileForm');
+    if (profileForm) {
+        profileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('updateProfileBtn');
+            const originalText = submitBtn.textContent;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang lưu...';
+                
+                const profileData = {
+                    full_name: document.getElementById('fullName').value.trim(),
+                    phone: document.getElementById('phone').value.trim(),
+                    address: document.getElementById('address').value.trim()
+                };
+                
+                await API.auth.updateProfile(profileData);
+                
+                // Cập nhật lại sidebar sau khi lưu thành công
+                const updatedUser = Utils.getUser();
+                if (updatedUser) {
+                    updatedUser.full_name = profileData.full_name;
+                    updatedUser.phone = profileData.phone;
+                    updatedUser.address = profileData.address;
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    
+                    document.getElementById('sidebarName').textContent = AuthUtils.getUserDisplayName(updatedUser);
+                    document.getElementById('sidebarAvatar').textContent = AuthUtils.getUserInitials(updatedUser);
+                    
+                    // Update global navigation
+                    AuthUtils.updateNavigation();
+                }
+                
+                Utils.showToast('Cập nhật thông tin thành công!', 'success');
+            } catch (error) {
+                console.error('Update profile error:', error);
+                Utils.showToast(error.message || 'Cập nhật thất bại', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    }
+    
+    // Handle Password Form Submit
+    const passwordForm = document.getElementById('passwordForm');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                Utils.showToast('Mật khẩu mới và xác nhận mật khẩu không khớp', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                Utils.showToast('Mật khẩu mới phải có ít nhất 6 ký tự', 'error');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('changePasswordBtn');
+            const originalText = submitBtn.textContent;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Đang xử lý...';
+                
+                await API.auth.changePassword({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                });
+                
+                Utils.showToast('Đổi mật khẩu thành công!', 'success');
+                passwordForm.reset();
+            } catch (error) {
+                console.error('Change password error:', error);
+                Utils.showToast(error.message || 'Đổi mật khẩu thất bại', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    }
+    
+    // Logout Button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            AuthUtils.handleLogout();
+        });
+    }
 }
 
 // Admin page functionality
 function setupAdminPage() {
     // This will be implemented when creating admin.html
     console.log('Setting up admin page');
+}
+
+// Orders page functionality
+function setupOrdersPage() {
+    Components.initLayout({ activePage: 'orders', subNavTitle: 'Quản lý đơn hàng' });
+    
+    // Check authentication
+    if (!AuthUtils.protectRoute()) return;
+    
+    const loadingState = document.getElementById('loadingState');
+    const profileLayout = document.getElementById('profileLayout');
+    const ordersList = document.getElementById('ordersList');
+    
+    // Load profile data for sidebar
+    async function loadSidebarData() {
+        try {
+            const user = Utils.getUser();
+            if (user) {
+                document.getElementById('sidebarAvatar').textContent = AuthUtils.getUserInitials(user);
+                document.getElementById('sidebarName').textContent = AuthUtils.getUserDisplayName(user);
+                document.getElementById('sidebarEmail').textContent = user.email || '';
+            }
+        } catch (error) {
+            console.error('Error loading sidebar:', error);
+        }
+    }
+    
+    // Load user orders
+    async function loadOrders() {
+        try {
+            const response = await API.orders.getUserOrders();
+            const orders = response.orders || [];
+            
+            if (orders.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="empty-orders">
+                        <i class="fas fa-box-open"></i>
+                        <h3>Bạn chưa có đơn hàng nào</h3>
+                        <p style="margin: 16px 0;">Hãy khám phá các sản phẩm tuyệt vời của chúng tôi</p>
+                        <a href="./product.html" class="btn btn-primary">Mua sắm ngay</a>
+                    </div>
+                `;
+            } else {
+                ordersList.innerHTML = orders.map(order => renderOrderCard(order)).join('');
+            }
+            
+            // Show content
+            loadingState.style.display = 'none';
+            profileLayout.style.display = 'grid';
+            
+        } catch (error) {
+            console.error('Error loading orders:', error);
+            ordersList.innerHTML = `
+                <div class="alert alert-error" style="margin-top: 24px;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.
+                </div>
+            `;
+            loadingState.style.display = 'none';
+            profileLayout.style.display = 'grid';
+        }
+    }
+    
+    function renderOrderCard(order) {
+        const statusMap = {
+            'pending': { text: 'Chờ xử lý', class: 'status-pending' },
+            'processing': { text: 'Đang xử lý', class: 'status-processing' },
+            'shipped': { text: 'Đang giao hàng', class: 'status-shipped' },
+            'delivered': { text: 'Đã giao', class: 'status-delivered' },
+            'cancelled': { text: 'Đã hủy', class: 'status-cancelled' }
+        };
+        
+        const status = statusMap[order.status] || { text: order.status, class: 'status-pending' };
+        const orderDate = Utils.formatDate(order.created_at);
+        const totalAmount = Utils.formatCurrency(order.total_amount);
+        
+        const itemsHtml = (order.items || []).map(item => `
+            <div class="order-item">
+                <img src="${item.image_url || '/images/placeholder.jpg'}" alt="${item.product_name}" class="order-item-image" onerror="this.src='/images/placeholder.jpg'">
+                <div class="order-item-details">
+                    <div class="order-item-name">${item.product_name}</div>
+                    <div class="order-item-meta">
+                        ${item.color ? `Màu: ${item.color}` : ''}
+                        ${item.color && item.size ? ' | ' : ''}
+                        ${item.size ? `Size: ${item.size}` : ''}
+                        <br>Số lượng: ${item.quantity}
+                    </div>
+                </div>
+                <div class="order-item-price">${Utils.formatCurrency(item.price)}</div>
+            </div>
+        `).join('');
+        
+        return `
+            <div class="order-card">
+                <div class="order-header">
+                    <div>
+                        <div class="order-id">Đơn hàng #${order.id || order.order_id}</div>
+                        <div class="order-date">${orderDate}</div>
+                    </div>
+                    <div class="order-status ${status.class}">
+                        ${status.text}
+                    </div>
+                </div>
+                
+                <div class="order-items">
+                    ${itemsHtml}
+                </div>
+                
+                <div class="order-footer">
+                    <div class="order-total-label">Tổng cộng</div>
+                    <div class="order-total-amount">${totalAmount}</div>
+                </div>
+                
+                ${order.status === 'pending' ? `
+                <div style="margin-top: 16px; text-align: right;">
+                    <button class="btn btn-secondary-pill" onclick="cancelOrder(${order.id || order.order_id})" style="padding: 8px 16px; font-size: 14px; border: 1px solid #e74c3c; color: #e74c3c;">
+                        Hủy đơn hàng
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    // Setup cancel order function globally so inline onclick can access it
+    window.cancelOrder = async function(orderId) {
+        if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+        
+        try {
+            await API.orders.cancelOrder(orderId);
+            Utils.showToast('Hủy đơn hàng thành công', 'success');
+            loadOrders(); // Reload the list
+        } catch (error) {
+            console.error('Cancel order error:', error);
+            Utils.showToast(error.message || 'Không thể hủy đơn hàng', 'error');
+        }
+    };
+    
+    loadSidebarData();
+    loadOrders();
+    
+    // Logout Button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            AuthUtils.handleLogout();
+        });
+    }
 }
 
 // Product detail page functionality
