@@ -940,12 +940,26 @@ const ordersAPI = {
     },
 
     async getUserOrders(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        return await apiRequest(`/orders/my-orders?${queryString}`);
+        try {
+            const queryString = new URLSearchParams(params).toString();
+            return await apiRequest(`/orders/my-orders?${queryString}`);
+        } catch (error) {
+            console.warn('Server unavailable, using mock orders');
+            const mockOrders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
+            return { success: true, orders: mockOrders };
+        }
     },
 
     async getOrder(id) {
-        return await apiRequest(`/orders/${id}`);
+        try {
+            return await apiRequest(`/orders/${id}`);
+        } catch (error) {
+            console.warn('Server unavailable, using mock order');
+            const mockOrders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
+            const order = mockOrders.find(o => o.id == id || o.order_id == id);
+            if (!order) throw new Error('Order not found');
+            return { success: true, order };
+        }
     },
 
     async cancelOrder(id) {

@@ -312,44 +312,22 @@ function checkAuthStatus() {
 function setupPageSpecificFunctions() {
     const path = window.location.pathname;
     
-    switch (path) {
-        case '/':
-            // Homepage functionality already in index.html
-            break;
-            
-        case '/login':
-            setupLoginPage();
-            break;
-            
-        case '/register':
-            setupRegisterPage();
-            break;
-            
-        case '/products':
-            setupProductsPage();
-            break;
-            
-        case '/cart':
-            setupCartPage();
-            break;
-            
-        case '/profile':
-            setupProfilePage();
-            break;
-            
-        case '/admin':
-            setupAdminPage();
-            break;
-            
-        case '/orders':
-            setupOrdersPage();
-            break;
-            
-        default:
-            if (path.startsWith('/product/')) {
-                setupProductDetailPage();
-            }
-            break;
+    if (path.includes('login.html') || path.endsWith('/login')) {
+        setupLoginPage();
+    } else if (path.includes('register.html') || path.endsWith('/register')) {
+        setupRegisterPage();
+    } else if (path.includes('products.html') || path.endsWith('/products')) {
+        setupProductsPage();
+    } else if (path.includes('cart.html') || path.endsWith('/cart')) {
+        setupCartPage();
+    } else if (path.includes('profile.html') || path.endsWith('/profile')) {
+        setupProfilePage();
+    } else if (path.includes('admin.html') || path.endsWith('/admin')) {
+        setupAdminPage();
+    } else if (path.includes('orders.html') || path.endsWith('/orders')) {
+        setupOrdersPage();
+    } else if (path.includes('/product/')) {
+        setupProductDetailPage();
     }
 }
 
