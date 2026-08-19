@@ -134,7 +134,7 @@ const Auth = {
             
             // Redirect to home page
             setTimeout(() => {
-                window.location.href = '/client/index.html';
+                window.location.href = '/index.html';
             }, 1000);
             
         } catch (error) {

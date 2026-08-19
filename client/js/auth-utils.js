@@ -17,7 +17,7 @@ const AuthUtils = {
         // Check role if specified
         if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
             Utils.showToast('Bạn không có quyền truy cập trang này', 'error');
-            window.location.href = '/client/index.html';
+            window.location.href = '/index.html';
             return false;
         }
         
