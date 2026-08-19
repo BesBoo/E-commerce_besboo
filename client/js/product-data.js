@@ -659,6 +659,11 @@
                 .slice(0, 8)
         }),
         getNewProducts: () => ({
+            products: products.map(withCategory)
+                .sort((first, second) => new Date(second.created_at) - new Date(first.created_at))
+                .slice(0, 8)
+        }),
+        getNewProducts: () => ({
             products: sortProducts(products.map(withCategory), { sortBy: 'created_at', sortOrder: 'DESC' }).slice(0, 8)
         })
     };

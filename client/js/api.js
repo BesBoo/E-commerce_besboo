@@ -1189,7 +1189,10 @@ const updateAuthUI = (user) => {
         if (loginBtn) loginBtn.style.display = 'none';
         if (userBtn) {
             userBtn.style.display = 'flex';
-            userBtn.querySelector('.username').textContent = user.username;
+            const usernameEl = userBtn.querySelector('.username');
+            if (usernameEl) {
+                usernameEl.textContent = user.username;
+            }
         }
         
         // Show admin link for admin users
