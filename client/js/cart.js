@@ -160,7 +160,7 @@ const CartManager = {
                             console.log('Direct method failed, using remove+add method');
                             
                             // Fallback to remove + add method
-                            await API.cart.removeFromCart(productId, { 
+                            await API.cart.removeFromCartByProduct(productId, { 
                                 color: color || null, 
                                 size: size || null 
                             });
@@ -179,7 +179,7 @@ const CartManager = {
                         // Use remove + add method as fallback
                         console.log('Using remove+add method');
                         
-                        await API.cart.removeFromCart(productId, { 
+                        await API.cart.removeFromCartByProduct(productId, { 
                             color: color || null, 
                             size: size || null 
                         });
@@ -250,7 +250,7 @@ const CartManager = {
             // Sync với server trước khi xóa local
             if (Utils.getToken()) {
                 try {
-                    await API.cart.removeFromCart(productId, { color, size });
+                    await API.cart.removeFromCartByProduct(productId, { color, size });
                     console.log('Successfully removed from server');
                     
                     // FIXED: Reload cart từ server để đồng bộ dữ liệu

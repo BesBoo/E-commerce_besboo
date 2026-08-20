@@ -171,6 +171,28 @@ const addToLocalCart = async (item) => {
     };
 };
 
+const removeFromLocalCart = (productId, color, size) => {
+    const cart = getLocalCart();
+    const initialLength = cart.items.length;
+    
+    cart.items = cart.items.filter(item => 
+        !(Number(item.product_id) === Number(productId) && 
+          (item.color || null) === (color || null) && 
+          (item.size || null) === (size || null))
+    );
+    
+    if (cart.items.length < initialLength) {
+        saveLocalCart(cart);
+    }
+    
+    return {
+        success: true,
+        message: 'Đã xóa sản phẩm khỏi giỏ hàng',
+        items: cart.items,
+        total_items: cart.items.reduce((total, cartItem) => total + cartItem.quantity, 0)
+    };
+};
+
 // Auth API
 const authAPI = {
     async login(credentials) {
@@ -585,6 +607,15 @@ const cartAPI = {
         } catch (error) {
             console.error('Cart API error:', error);
             
+            // Fallback to local cart if server is offline
+            if (error.message.includes('connection') || error.message.includes('fetch')) {
+                console.warn('Server unavailable, using mock cart');
+                const response = await addToLocalCart(item);
+                Utils.showToast(response.message || 'Đã thêm sản phẩm vào giỏ hàng', 'success');
+                await this.updateCartCount();
+                return response;
+            }
+            
             // Extract meaningful error message
             let errorMessage = 'Lỗi khi thêm vào giỏ hàng';
             
@@ -599,8 +630,6 @@ const cartAPI = {
                 setTimeout(() => {
                     window.location.href = '/login.html';
                 }, 2000);
-            } else if (error.message.includes('connection') || error.message.includes('fetch')) {
-                errorMessage = 'Lỗi kết nối, vui lòng thử lại';
             }
             
             Utils.showToast(errorMessage, 'error');
@@ -716,6 +745,19 @@ const cartAPI = {
         } catch (error) {
             console.error('Remove by product error:', error);
             
+            // Fallback to local cart if server is offline
+            if (error.message.includes('connection') || error.message.includes('fetch')) {
+                console.warn('Server unavailable, using mock cart');
+                const response = removeFromLocalCart(
+                    productId, 
+                    options.color || null, 
+                    options.size || null
+                );
+                Utils.showToast(response.message || 'Đã xóa sản phẩm khỏi giỏ hàng', 'success');
+                await this.updateCartCount();
+                return response;
+            }
+            
             let errorMessage = 'Lỗi khi xóa sản phẩm';
             if (error.message.includes('không tồn tại')) {
                 errorMessage = 'Sản phẩm không còn trong giỏ hàng';
@@ -745,6 +787,16 @@ const cartAPI = {
             return response;
         } catch (error) {
             console.error('Failed to clear cart:', error);
+            
+            // Fallback to local cart if server is offline
+            if (error.message.includes('connection') || error.message.includes('fetch')) {
+                console.warn('Server unavailable, using mock cart');
+                saveLocalCart({ items: [], total: 0, totalItems: 0 });
+                Utils.showToast('Đã xóa tất cả sản phẩm khỏi giỏ hàng', 'success');
+                await this.updateCartCount();
+                return { success: true };
+            }
+            
             Utils.showToast('Lỗi khi xóa giỏ hàng', 'error');
             throw error;
         }
