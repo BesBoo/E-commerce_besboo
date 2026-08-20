@@ -4,11 +4,11 @@
 
 > **BesBoo** là một nền tảng web thương mại điện tử hiện đại, mang phong cách thiết kế tối giản (minimalism) lấy cảm hứng từ ngôn ngữ thiết kế của Apple. Dự án được xây dựng với mục tiêu mang lại trải nghiệm mua sắm mượt mà, trực quan, tập trung tối đa vào nguyên lý UI/UX và hành trình người dùng.
 
-🔗 **[Trải nghiệm Live Demo tại đây](https://besboo.github.io/E-commerce_besboo/)**
+ **[Trải nghiệm Live Demo tại đây](https://besboo.github.io/E-commerce_besboo/)**
 
 ---
 
-## 🎨 Triết lý Thiết kế UI/UX
+##  Triết lý Thiết kế UI/UX
 
 - **Minimalist & Clean:** Sử dụng không gian trắng (white space) hợp lý, bảng màu trung tính tinh tế và typography hiện đại để hướng sự chú ý của người dùng hoàn toàn vào sản phẩm.
 - **Micro-Interactions (Vi tương tác):** Hiệu ứng hover mượt mà, thông báo dạng Toast, và các chuyển động (transitions) tinh tế cung cấp phản hồi tức thì cho người dùng mà không gây rối mắt.
@@ -17,7 +17,7 @@
 
 ---
 
-## 📸 Giao diện Nổi bật (UI/UX Showcase)
+##  Giao diện Nổi bật (UI/UX Showcase)
 
 *Dưới đây là một số hình ảnh thực tế của dự án thể hiện luồng trải nghiệm người dùng.*
 
@@ -32,7 +32,7 @@
 
 ---
 
-## 🚀 Tính năng Nổi bật
+##  Tính năng Nổi bật
 
 - **Khám phá Sản phẩm (Product Listing):** Lọc sản phẩm nâng cao theo danh mục, giá cả, màu sắc, kích thước và phân trang.
 - **Chi tiết Sản phẩm (Product Detail):** Hiển thị đầy đủ thông số, bộ sưu tập ảnh (thumbnail gallery), và hệ thống đánh giá/review động.
@@ -41,7 +41,7 @@
 
 ---
 
-## 🛠️ Công nghệ Sử dụng
+##  Công nghệ Sử dụng
 
 - **Frontend:** Vanilla HTML5, CSS3 (Xây dựng Design System & Tokens riêng biệt), JavaScript (ES6+)
 - **Kiến trúc mã nguồn:** Thiết kế theo hướng Component (`components.js`) để dễ dàng tái sử dụng UI.
