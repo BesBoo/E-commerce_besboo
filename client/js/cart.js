@@ -635,13 +635,14 @@ const CartManager = {
         }
 
         // Kiểm tra đăng nhập
-        if (!Utils.getToken()) {
-            Utils.showToast('Vui lòng đăng nhập để tiếp tục', 'error');
-            window.location.href = '/login?redirect=/checkout';
+        const user = Utils.getToken();
+        if (!user) {
+            Utils.showToast('Vui lòng đăng nhập để tiếp tục thanh toán', 'warning');
+            setTimeout(() => {
+                window.location.href = './login.html?redirect=checkout.html';
+            }, 1500);
             return;
-        }
-
-        // Lưu thông tin checkout vào sessionStorage
+        }// Lưu thông tin checkout vào sessionStorage
         sessionStorage.setItem('checkoutData', JSON.stringify({
             items: this.cart.items,
             subtotal: this.cart.subtotal,
@@ -650,7 +651,7 @@ const CartManager = {
             total: this.cart.total
         }));
 
-        window.location.href = '/checkout';
+        window.location.href = 'checkout.html';
     },
 
     // Sync giỏ hàng khi đăng nhập

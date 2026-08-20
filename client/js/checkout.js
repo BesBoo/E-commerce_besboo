@@ -10,7 +10,7 @@ const CheckoutManager = {
             // Kiểm tra đăng nhập
             if (!Utils.getToken()) {
                 Utils.showToast('Vui lòng đăng nhập để tiếp tục', 'error');
-                window.location.href = '/login?redirect=/checkout';
+                window.location.href = './login.html?redirect=checkout.html';
                 return;
             }
 
@@ -354,7 +354,7 @@ const CheckoutManager = {
             
             // Redirect to success page
             setTimeout(() => {
-                window.location.href = `/order-success?orderId=${response.order_id}`;
+                window.location.href = `./order-success.html?orderId=${response.order_id}`;
             }, 1500);
 
         } catch (error) {

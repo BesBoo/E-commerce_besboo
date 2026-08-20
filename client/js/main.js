@@ -285,13 +285,13 @@ function checkAuthStatus() {
     
     // Redirect if not authenticated and on protected page
     if (!token && protectedPages.some(page => currentPath.startsWith(page))) {
-        window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+        window.location.href = './login.html?redirect=' + encodeURIComponent(currentPath);
         return;
     }
     
     // Redirect if authenticated and on guest page
     if (token && guestPages.includes(currentPath)) {
-        window.location.href = '/';
+        window.location.href = './index.html';
         return;
     }
     
@@ -299,7 +299,7 @@ function checkAuthStatus() {
     if (adminPages.some(page => currentPath.startsWith(page))) {
         if (!user || user.role !== 'admin') {
             Utils.showToast('Bạn không có quyền truy cập trang này', 'error');
-            window.location.href = '/';
+            window.location.href = './index.html';
             return;
         }
     }
@@ -402,7 +402,7 @@ function setupRegisterPage() {
             
             const response = await API.auth.register(userData);
             Utils.showToast('Đăng ký thành công!');
-            window.location.href = '/';
+            window.location.href = './index.html';
             
         } catch (error) {
             Utils.showToast(error.message, 'error');

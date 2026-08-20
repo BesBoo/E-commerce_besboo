@@ -271,7 +271,7 @@ const authAPI = {
 
     async logout() {
         clearAuth();
-        window.location.href = '/';
+        window.location.href = './index.html';
     },
 
     async getProfile() {
