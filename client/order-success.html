@@ -6,6 +6,7 @@
     <title>Đặt hàng thành công - BesBoo</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -494,72 +495,7 @@
 </head>
 <body>
     <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <a href="./index.html">
-                        <i class="fas fa-store"></i>
-                        BesBoo
-                    </a>
-                </div>
-
-                <nav class="nav-menu">
-                    <a href="./index.html" class="nav-link">Trang chủ</a>
-                    <a href="./product.html" class="nav-link">Sản phẩm</a>
-                    <a href="./categories.html" class="nav-link">Danh mục</a>
-                    <a href="./about.html" class="nav-link">Giới thiệu</a>
-                    <a href="./contact.html" class="nav-link">Liên hệ</a>
-                </nav>
-
-                <div class="header-actions">
-                    <button class="search-btn">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    
-                    <a href="./favorites.html" class="favorites-btn">
-                        <i class="far fa-heart"></i>
-                        <span class="badge" id="favoriteCount">0</span>
-                    </a>
-                    
-                    <a href="./cart.html" class="cart-btn">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="badge" id="cartCount">0</span>
-                    </a>
-
-                    <!-- User Menu -->
-                    <div class="user-menu" style="display: none;">
-                        <button class="user-btn">
-                            <i class="fas fa-user"></i>
-                            <span class="username"></span>
-                        </button>
-                        <div class="user-dropdown">
-                            <a href="/profile"><i class="fas fa-user-circle"></i> Hồ sơ</a>
-                            <a href="/orders"><i class="fas fa-clipboard-list"></i> Đơn hàng</a>
-                            <a href="/admin" class="admin-link" style="display: none;">
-                                <i class="fas fa-cog"></i> Quản trị
-                            </a>
-                            <hr>
-                            <button onclick="API.auth.logout()">
-                                <i class="fas fa-sign-out-alt"></i> Đăng xuất
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Login Button -->
-                    <div class="login-btn">
-                        <a href="/login" class="btn btn-outline">Đăng nhập</a>
-                        <a href="/register" class="btn btn-primary">Đăng ký</a>
-                    </div>
-                </div>
-                <button class="mobile-menu-btn">
-                    <i class="fas fa-bars"></i>
-                </button>
-
-                
-            </div>
-        </div>
-    </header>
+    <div id="site-header"></div>
 
     <!-- Main Content -->
     <main class="success-container">
@@ -639,59 +575,18 @@
     </main>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>BesBoo</h3>
-                    <p>Cửa hàng trực tuyến uy tín, chất lượng cao với đa dạng sản phẩm.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                    </div>
-                </div>
-                <div class="footer-section">
-                    <h4>Liên kết nhanh</h4>
-                    <ul>
-                        <li><a href="./index.html">Trang chủ</a></li>
-                        <li><a href="./product.html">Sản phẩm</a></li>
-                        <li><a href="./about.html">Giới thiệu</a></li>
-                        <li><a href="./contact.html">Liên hệ</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Hỗ trợ khách hàng</h4>
-                    <ul>
-                        <li><a href="/help">Trung tâm trợ giúp</a></li>
-                        <li><a href="/shipping">Vận chuyển</a></li>
-                        <li><a href="/returns">Đổi trả</a></li>
-                        <li><a href="/faq">FAQ</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Thông tin liên hệ</h4>
-                    <div class="contact-info">
-                        <p><i class="fas fa-phone"></i> 1900 1234</p>
-                        <p><i class="fas fa-envelope"></i> support@BesBoo.com</p>
-                        <p><i class="fas fa-map-marker-alt"></i> 123 ABC Street, Vietnam</p>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 BesBoo. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+    <div id="site-footer"></div>
 
     <!-- Scripts -->
     <script src="./js/api.js"></script>
+    <script src="./js/components.js"></script>
     <script src="./js/auth-utils.js"></script>
     <script src="./js/main.js"></script>
     <script>
         // Order Success Page Logic
         document.addEventListener('DOMContentLoaded', function() {
             // Get order ID from URL
+            Components.initLayout();
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('orderId');
             
