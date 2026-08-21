@@ -343,7 +343,7 @@ const CheckoutManager = {
             };
 
             // Place order
-            const response = await API.cart.checkout(orderData);
+            const response = await API.orders.createOrder(orderData);
 
             // Success
             Utils.showToast('Đặt hàng thành công!');
