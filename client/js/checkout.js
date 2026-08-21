@@ -339,7 +339,8 @@ const CheckoutManager = {
                 phone: formData.get('phone'),
                 notes: formData.get('notes') || '',
                 payment_method: formData.get('paymentMethod') || 'COD',
-                promotion_code: this.checkoutData.discountCode || null
+                promotion_code: this.checkoutData.discountCode || null,
+                total_amount: this.checkoutData.finalTotal
             };
 
             // Place order

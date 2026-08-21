@@ -646,13 +646,17 @@ function setupOrdersPage() {
         
         const status = statusMap[order.status] || { text: order.status, class: 'status-pending' };
         const orderDate = Utils.formatDate(order.created_at);
-        const totalAmount = Utils.formatCurrency(order.total_amount);
+        const totalAmountValue = order.total_amount || order.total || (order.items || []).reduce((sum, item) => {
+            const itemPrice = item.price * (1 - (item.discount_percent || 0) / 100);
+            return sum + (itemPrice * item.quantity);
+        }, 0);
+        const totalAmount = Utils.formatCurrency(totalAmountValue);
         
         const itemsHtml = (order.items || []).map(item => `
             <div class="order-item">
-                <img src="${item.image_url || '/images/placeholder.jpg'}" alt="${item.product_name}" class="order-item-image" onerror="this.src='/images/placeholder.jpg'">
+                <img src="${item.image_url || '/images/placeholder.jpg'}" alt="${item.product_name || item.name}" class="order-item-image" onerror="this.src='/images/placeholder.jpg'">
                 <div class="order-item-details">
-                    <div class="order-item-name">${item.product_name}</div>
+                    <div class="order-item-name">${item.product_name || item.name}</div>
                     <div class="order-item-meta">
                         ${item.color ? `Màu: ${item.color}` : ''}
                         ${item.color && item.size ? ' | ' : ''}
