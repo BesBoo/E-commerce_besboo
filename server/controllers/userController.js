@@ -1,75 +1,66 @@
-// userController.js - Fixed version
+// userController.js - Supabase Postgres version
 const bcrypt = require('bcrypt');
 const { validationResult } = require('express-validator');
-const { getPool, sql } = require('../config/db');
+const { getPool } = require('../config/db');
 const { generateToken } = require('../middleware/auth');
 
 const userController = {
-    // Đăng ký user mới
+    // �ang k� user m?i
     register: async (req, res) => {
         try {
-            console.log('📝 Register request body:', req.body);
+            console.log('?? Register request body:', req.body);
             
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                console.log('❌ Validation errors:', errors.array());
+                console.log('? Validation errors:', errors.array());
                 return res.status(400).json({ 
-                    message: 'Dữ liệu không hợp lệ',
+                    message: 'D? li?u kh�ng h?p l?',
                     errors: errors.array() 
                 });
             }
 
             const { username, email, password, phone, full_name } = req.body;
 
-            // Kiểm tra required fields
             if (!username || !email || !password) {
                 return res.status(400).json({ 
-                    message: 'Username, email và password là bắt buộc' 
+                    message: 'Username, email v� password l� b?t bu?c' 
                 });
             }
 
             const pool = getPool();
 
-            // Kiểm tra username và email đã tồn tại
-            console.log('🔍 Checking existing user...');
-            const checkUser = await pool.request()
-                .input('username', sql.NVarChar(50), username)
-                .input('email', sql.NVarChar(100), email)
-                .query('SELECT user_id FROM users WHERE username = @username OR email = @email');
+            console.log('?? Checking existing user...');
+            const checkUser = await pool.query(
+                'SELECT user_id FROM users WHERE username = $1 OR email = $2',
+                [username, email]
+            );
 
-            if (checkUser.recordset.length > 0) {
-                console.log('❌ User already exists');
+            if (checkUser.rows.length > 0) {
+                console.log('? User already exists');
                 return res.status(400).json({ 
-                    message: 'Username hoặc email đã tồn tại' 
+                    message: 'Username ho?c email d� t?n t?i' 
                 });
             }
 
-            // Hash password
-            console.log('🔐 Hashing password...');
+            console.log('?? Hashing password...');
             const saltRounds = 10;
             const hashedPassword = await bcrypt.hash(password, saltRounds);
-            console.log('✅ Password hashed successfully');
+            console.log('? Password hashed successfully');
 
-            // Thêm user mới
-            console.log('💾 Creating new user...');
-            const result = await pool.request()
-                .input('username', sql.NVarChar(50), username)
-                .input('password_hash', sql.NVarChar(255), hashedPassword)
-                .input('email', sql.NVarChar(100), email)
-                .input('phone', sql.NVarChar(20), phone || null)
-                .input('full_name', sql.NVarChar(100), full_name || null)
-                .query(`
-                    INSERT INTO users (username, password_hash, email, phone, full_name)
-                    OUTPUT INSERTED.user_id, INSERTED.username, INSERTED.email, INSERTED.role
-                    VALUES (@username, @password_hash, @email, @phone, @full_name)
-                `);
+            console.log('?? Creating new user...');
+            const result = await pool.query(
+                `INSERT INTO users (username, password_hash, email, phone, full_name)
+                 VALUES ($1, $2, $3, $4, $5)
+                 RETURNING user_id, username, email, role`,
+                [username, hashedPassword, email, phone || null, full_name || null]
+            );
 
-            console.log('✅ User created:', result.recordset[0]);
-            const newUser = result.recordset[0];
+            console.log('? User created:', result.rows[0]);
+            const newUser = result.rows[0];
             const token = generateToken(newUser.user_id, newUser.username, newUser.role);
 
             res.status(201).json({
-                message: 'Đăng ký thành công',
+                message: '�ang k� th�nh c�ng',
                 user: {
                     user_id: newUser.user_id,
                     username: newUser.username,
@@ -79,82 +70,65 @@ const userController = {
                 token
             });
         } catch (error) {
-            console.error('❌ Register error:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                number: error.number,
-                state: error.state
-            });
+            console.error('? Register error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi đăng ký', 
+                message: 'L?i server khi dang k�', 
                 error: error.message 
             });
         }
     },
 
-    // Đăng nhập
+    // �ang nh?p
     login: async (req, res) => {
         try {
-            console.log('🔑 Login request:', { username: req.body.username, hasPassword: !!req.body.password });
+            console.log('?? Login request:', { username: req.body.username, hasPassword: !!req.body.password });
             
             const { username, password } = req.body;
 
             if (!username || !password) {
                 return res.status(400).json({ 
-                    message: 'Vui lòng nhập username và password' 
+                    message: 'Vui l�ng nh?p username v� password' 
                 });
             }
 
             const pool = getPool();
             
-            // Tìm user trong database
-            console.log('🔍 Looking for user:', username);
-            const result = await pool.request()
-                .input('username', sql.NVarChar(50), username)
-                .query(`
-                    SELECT user_id, username, password_hash, email, role, full_name 
-                    FROM users 
-                    WHERE username = @username
-                `);
+            console.log('?? Looking for user:', username);
+            const result = await pool.query(
+                `SELECT user_id, username, password_hash, email, role, full_name 
+                 FROM users 
+                 WHERE username = $1`,
+                [username]
+            );
 
-            console.log('👤 User query result:', result.recordset.length, 'users found');
+            console.log('?? User query result:', result.rows.length, 'users found');
             
-            if (result.recordset.length === 0) {
-                console.log('❌ User not found');
+            if (result.rows.length === 0) {
+                console.log('? User not found');
                 return res.status(401).json({ 
-                    message: 'Username hoặc password không đúng' 
+                    message: 'Username ho?c password kh�ng d�ng' 
                 });
             }
 
-            const user = result.recordset[0];
-            console.log('👤 Found user:', { 
-                user_id: user.user_id, 
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                hasPasswordHash: !!user.password_hash
-            });
-
-            // So sánh password
-            console.log('🔐 Comparing passwords...');
+            const user = result.rows[0];
+            
+            console.log('?? Comparing passwords...');
             const isValidPassword = await bcrypt.compare(password, user.password_hash);
-            console.log('✅ Password comparison result:', isValidPassword);
+            console.log('? Password comparison result:', isValidPassword);
 
             if (!isValidPassword) {
-                console.log('❌ Invalid password');
+                console.log('? Invalid password');
                 return res.status(401).json({ 
-                    message: 'Username hoặc password không đúng' 
+                    message: 'Username ho?c password kh�ng d�ng' 
                 });
             }
 
-            // Generate token
-            console.log('🎫 Generating token...');
+            console.log('?? Generating token...');
             const token = generateToken(user.user_id, user.username, user.role);
 
-            console.log('✅ Login successful');
+            console.log('? Login successful');
             res.json({
-                message: 'Đăng nhập thành công',
+                message: '�ang nh?p th�nh c�ng',
                 user: {
                     user_id: user.user_id,
                     username: user.username,
@@ -165,201 +139,183 @@ const userController = {
                 token
             });
         } catch (error) {
-            console.error('❌ Login error:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                number: error.number,
-                state: error.state
-            });
+            console.error('? Login error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi đăng nhập', 
+                message: 'L?i server khi dang nh?p', 
                 error: error.message 
             });
         }
     },
 
-    // Lấy thông tin profile
+    // L?y th�ng tin profile
     getProfile: async (req, res) => {
         try {
-            console.log('👤 Getting profile for user:', req.user.user_id);
+            console.log('?? Getting profile for user:', req.user.user_id);
             
             const pool = getPool();
-            const result = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .query(`
-                    SELECT user_id, username, email, phone, full_name, address, created_at, updated_at
-                    FROM users WHERE user_id = @userId
-                `);
+            const result = await pool.query(
+                `SELECT user_id, username, email, phone, full_name, address, created_at, updated_at
+                 FROM users WHERE user_id = $1`,
+                [req.user.user_id]
+            );
 
-            if (result.recordset.length === 0) {
-                return res.status(404).json({ message: 'User không tồn tại' });
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User kh�ng t?n t?i' });
             }
 
-            res.json({ user: result.recordset[0] });
+            res.json({ user: result.rows[0] });
         } catch (error) {
-            console.error('❌ Get profile error:', error);
+            console.error('? Get profile error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi lấy thông tin profile', 
+                message: 'L?i server khi l?y th�ng tin profile', 
                 error: error.message 
             });
         }
     },
 
-    // Cập nhật profile
+    // C?p nh?t profile
     updateProfile: async (req, res) => {
         try {
-            console.log('📝 Updating profile for user:', req.user.user_id, req.body);
+            console.log('?? Updating profile for user:', req.user.user_id, req.body);
             
             const { phone, full_name, address } = req.body;
             const pool = getPool();
 
-            const result = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .input('phone', sql.NVarChar(20), phone || null)
-                .input('full_name', sql.NVarChar(100), full_name || null)
-                .input('address', sql.NVarChar(255), address || null)
-                .query(`
-                    UPDATE users 
-                    SET phone = @phone, full_name = @full_name, address = @address, updated_at = GETDATE()
-                    WHERE user_id = @userId
-                `);
+            const result = await pool.query(
+                `UPDATE users 
+                 SET phone = $1, full_name = $2, address = $3, updated_at = NOW()
+                 WHERE user_id = $4`,
+                [phone || null, full_name || null, address || null, req.user.user_id]
+            );
 
-            console.log('✅ Profile updated, rows affected:', result.rowsAffected[0]);
-            res.json({ message: 'Cập nhật thông tin thành công' });
+            console.log('? Profile updated, rows affected:', result.rowCount);
+            res.json({ message: 'C?p nh?t th�ng tin th�nh c�ng' });
         } catch (error) {
-            console.error('❌ Update profile error:', error);
+            console.error('? Update profile error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi cập nhật profile', 
+                message: 'L?i server khi c?p nh?t profile', 
                 error: error.message 
             });
         }
     },
 
-    // Đổi mật khẩu
+    // �?i m?t kh?u
     changePassword: async (req, res) => {
         try {
-            console.log('🔐 Changing password for user:', req.user.user_id);
+            console.log('?? Changing password for user:', req.user.user_id);
             
             const { currentPassword, newPassword } = req.body;
 
             if (!currentPassword || !newPassword) {
                 return res.status(400).json({ 
-                    message: 'Vui lòng nhập đầy đủ thông tin' 
+                    message: 'Vui l�ng nh?p d?y d? th�ng tin' 
                 });
             }
 
             const pool = getPool();
             
-            // Lấy mật khẩu hiện tại
-            const result = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .query('SELECT password_hash FROM users WHERE user_id = @userId');
+            const result = await pool.query(
+                'SELECT password_hash FROM users WHERE user_id = $1',
+                [req.user.user_id]
+            );
 
-            if (result.recordset.length === 0) {
-                return res.status(404).json({ message: 'User không tồn tại' });
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: 'User kh�ng t?n t?i' });
             }
 
-            const user = result.recordset[0];
+            const user = result.rows[0];
             const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
 
             if (!isValidPassword) {
                 return res.status(400).json({ 
-                    message: 'Mật khẩu hiện tại không đúng' 
+                    message: 'M?t kh?u hi?n t?i kh�ng d�ng' 
                 });
             }
 
-            // Hash mật khẩu mới
             const saltRounds = 10;
             const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-            // Cập nhật mật khẩu
-            await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .input('password_hash', sql.NVarChar(255), hashedNewPassword)
-                .query(`
-                    UPDATE users 
-                    SET password_hash = @password_hash, updated_at = GETDATE() 
-                    WHERE user_id = @userId
-                `);
+            await pool.query(
+                `UPDATE users 
+                 SET password_hash = $1, updated_at = NOW() 
+                 WHERE user_id = $2`,
+                [hashedNewPassword, req.user.user_id]
+            );
 
-            console.log('✅ Password changed successfully');
-            res.json({ message: 'Đổi mật khẩu thành công' });
+            console.log('? Password changed successfully');
+            res.json({ message: '�?i m?t kh?u th�nh c�ng' });
         } catch (error) {
-            console.error('❌ Change password error:', error);
+            console.error('? Change password error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi đổi mật khẩu', 
+                message: 'L?i server khi d?i m?t kh?u', 
                 error: error.message 
             });
         }
     },
 
-    // Lấy danh sách users (Admin only)
+    // L?y danh s�ch users (Admin only)
     getAllUsers: async (req, res) => {
         try {
-            console.log('👥 Getting all users (Admin request)');
+            console.log('?? Getting all users (Admin request)');
             
             const pool = getPool();
-            const result = await pool.request().query(`
+            const result = await pool.query(`
                 SELECT user_id, username, email, phone, full_name, role, created_at, updated_at
                 FROM users
                 ORDER BY created_at DESC
             `);
 
-            console.log('✅ Found', result.recordset.length, 'users');
-            res.json({ users: result.recordset });
+            console.log('? Found', result.rows.length, 'users');
+            res.json({ users: result.rows });
         } catch (error) {
-            console.error('❌ Get all users error:', error);
+            console.error('? Get all users error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi lấy danh sách users', 
+                message: 'L?i server khi l?y danh s�ch users', 
                 error: error.message 
             });
         }
     },
 
-    // Cập nhật role user (Admin only)
+    // C?p nh?t role user (Admin only)
     updateUserRole: async (req, res) => {
         try {
-            console.log('👑 Updating user role:', req.body);
+            console.log('?? Updating user role:', req.body);
             
             const { userId, role } = req.body;
 
             if (!['user', 'admin'].includes(role)) {
-                return res.status(400).json({ message: 'Role không hợp lệ' });
+                return res.status(400).json({ message: 'Role kh�ng h?p l?' });
             }
 
             const pool = getPool();
-            const result = await pool.request()
-                .input('userId', sql.Int, userId)
-                .input('role', sql.NVarChar(20), role)
-                .query(`
-                    UPDATE users 
-                    SET role = @role, updated_at = GETDATE() 
-                    WHERE user_id = @userId
-                `);
+            const result = await pool.query(
+                `UPDATE users 
+                 SET role = $1, updated_at = NOW() 
+                 WHERE user_id = $2`,
+                [role, userId]
+            );
 
-            console.log('✅ Role updated, rows affected:', result.rowsAffected[0]);
-            res.json({ message: 'Cập nhật role thành công' });
+            console.log('? Role updated, rows affected:', result.rowCount);
+            res.json({ message: 'C?p nh?t role th�nh c�ng' });
         } catch (error) {
-            console.error('❌ Update user role error:', error);
+            console.error('? Update user role error:', error);
             res.status(500).json({ 
-                message: 'Lỗi server khi cập nhật role', 
+                message: 'L?i server khi c?p nh?t role', 
                 error: error.message 
             });
         }
     },
 
-    // Test function để kiểm tra database connection
     testDB: async (req, res) => {
         try {
             const pool = getPool();
-            const result = await pool.request().query('SELECT COUNT(*) as total FROM users');
+            const result = await pool.query('SELECT COUNT(*) as total FROM users');
             res.json({ 
                 message: 'Database connection OK',
-                totalUsers: result.recordset[0].total
+                totalUsers: result.rows[0].total
             });
         } catch (error) {
-            console.error('❌ Database test error:', error);
+            console.error('? Database test error:', error);
             res.status(500).json({ 
                 message: 'Database connection failed', 
                 error: error.message 

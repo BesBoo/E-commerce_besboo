@@ -1,6 +1,6 @@
 // client/js/api.js - FIXED VERSION
 // API Base URL
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:5000/api' : '/api';
 
 // Utility functions
 const getToken = () => localStorage.getItem('token');
@@ -1322,3 +1322,4 @@ window.Utils = {
     setAuth,
     clearAuth
 };
+

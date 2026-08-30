@@ -29,10 +29,10 @@ async function seedAdmin() {
                 .input('email', sql.NVarChar(100), email)
                 .input('role', sql.NVarChar(20), role)
                 .input('full_name', sql.NVarChar(100), 'System Administrator')
-                .query(
+                .query(`
                     INSERT INTO users (username, password_hash, email, role, full_name)
                     VALUES (@username, @password_hash, @email, @role, @full_name)
-                );
+                `);
             console.log('Admin account created successfully.');
             console.log('Email:', email);
             console.log('Password:', password);

@@ -1,85 +1,78 @@
 // server/controller/orderController.js
 
-const { getPool, sql } = require('../config/db');
+const { getPool } = require('../config/db');
 
 const orderController = {
-    // Tạo đơn hàng mới
     createOrder: async (req, res) => {
-        const transaction = new sql.Transaction(getPool());
+        const pool = getPool();
+        const client = await pool.connect();
         
         try {
-            await transaction.begin();
-            const request = new sql.Request(transaction);
+            await client.query('BEGIN');
 
             const { items, shipping_address, phone, notes, promotion_code } = req.body;
             
             if (!items || items.length === 0) {
-                await transaction.rollback();
-                return res.status(400).json({ message: 'Giỏ hàng trống' });
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Gi? h�ng tr?ng' });
             }
 
             let total_amount = 0;
             let promotion_discount = 0;
 
-            // Kiểm tra mã khuyến mãi nếu có
             if (promotion_code) {
-                const promotionResult = await request
-                    .input('code', sql.NVarChar, promotion_code)
-                    .query(`
-                        SELECT discount_type, discount_value, min_order_amount, usage_limit, used_count
-                        FROM promotions
-                        WHERE code = @code AND is_active = 1
-                        AND (start_date IS NULL OR start_date <= GETDATE())
-                        AND (end_date IS NULL OR end_date >= GETDATE())
-                    `);
+                const promotionResult = await client.query(`
+                    SELECT discount_type, discount_value, min_order_amount, usage_limit, used_count
+                    FROM promotions
+                    WHERE code = $1 AND is_active = TRUE
+                    AND (start_date IS NULL OR start_date <= NOW())
+                    AND (end_date IS NULL OR end_date >= NOW())
+                `, [promotion_code]);
 
-                if (promotionResult.recordset.length > 0) {
-                    const promotion = promotionResult.recordset[0];
+                if (promotionResult.rows.length > 0) {
+                    const promotion = promotionResult.rows[0];
                     
                     if (promotion.usage_limit && promotion.used_count >= promotion.usage_limit) {
-                        await transaction.rollback();
-                        return res.status(400).json({ message: 'Mã khuyến mãi đã hết lượt sử dụng' });
+                        await client.query('ROLLBACK');
+                        return res.status(400).json({ message: 'M� khuy?n m�i d� h?t lu?t s? d?ng' });
                     }
                 }
             }
 
-            // Tính tổng tiền và kiểm tra tồn kho
             for (const item of items) {
-                const productResult = await request
-                    .input('productId', sql.Int, item.product_id)
-                    .query('SELECT price, stock, name FROM products WHERE product_id = @productId');
+                const productResult = await client.query(
+                    'SELECT price, stock, name FROM products WHERE product_id = $1',
+                    [item.product_id]
+                );
 
-                if (productResult.recordset.length === 0) {
-                    await transaction.rollback();
-                    return res.status(400).json({ message: `Sản phẩm ID ${item.product_id} không tồn tại` });
+                if (productResult.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: `S?n ph?m ID ${item.product_id} kh�ng t?n t?i` });
                 }
 
-                const product = productResult.recordset[0];
+                const product = productResult.rows[0];
                 
                 if (product.stock < item.quantity) {
-                    await transaction.rollback();
+                    await client.query('ROLLBACK');
                     return res.status(400).json({ 
-                        message: `Sản phẩm ${product.name} không đủ hàng. Tồn kho: ${product.stock}` 
+                        message: `S?n ph?m ${product.name} kh�ng d? h�ng. T?n kho: ${product.stock}` 
                     });
                 }
 
                 total_amount += product.price * item.quantity;
             }
 
-            // Áp dụng mã khuyến mãi
             if (promotion_code) {
-                const promotionResult = await request
-                    .input('code2', sql.NVarChar, promotion_code)
-                    .query(`
-                        SELECT discount_type, discount_value, min_order_amount
-                        FROM promotions
-                        WHERE code = @code2 AND is_active = 1
-                        AND (start_date IS NULL OR start_date <= GETDATE())
-                        AND (end_date IS NULL OR end_date >= GETDATE())
-                    `);
+                const promotionResult = await client.query(`
+                    SELECT discount_type, discount_value, min_order_amount
+                    FROM promotions
+                    WHERE code = $1 AND is_active = TRUE
+                    AND (start_date IS NULL OR start_date <= NOW())
+                    AND (end_date IS NULL OR end_date >= NOW())
+                `, [promotion_code]);
 
-                if (promotionResult.recordset.length > 0) {
-                    const promotion = promotionResult.recordset[0];
+                if (promotionResult.rows.length > 0) {
+                    const promotion = promotionResult.rows[0];
                     
                     if (total_amount >= promotion.min_order_amount) {
                         if (promotion.discount_type === 'percent') {
@@ -90,227 +83,201 @@ const orderController = {
                         
                         total_amount -= promotion_discount;
                         
-                        // Cập nhật số lần sử dụng
-                        await request
-                            .input('code3', sql.NVarChar, promotion_code)
-                            .query('UPDATE promotions SET used_count = used_count + 1 WHERE code = @code3');
+                        await client.query(
+                            'UPDATE promotions SET used_count = used_count + 1 WHERE code = $1',
+                            [promotion_code]
+                        );
                     }
                 }
             }
 
-            // Tạo đơn hàng
-            const orderResult = await request
-                .input('userId', sql.Int, req.user.user_id)
-                .input('total_amount', sql.Decimal(18,2), total_amount)
-                .input('shipping_address', sql.NVarChar, shipping_address)
-                .input('phone', sql.NVarChar, phone)
-                .input('notes', sql.NVarChar, notes)
-                .query(`
-                    INSERT INTO orders (user_id, total_amount, shipping_address, phone, notes)
-                    OUTPUT INSERTED.order_id
-                    VALUES (@userId, @total_amount, @shipping_address, @phone, @notes)
-                `);
+            const orderResult = await client.query(`
+                INSERT INTO orders (user_id, total_amount, shipping_address, phone, notes)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING order_id
+            `, [req.user.user_id, total_amount, shipping_address, phone, notes || null]);
 
-            const order_id = orderResult.recordset[0].order_id;
+            const order_id = orderResult.rows[0].order_id;
 
-            // Thêm chi tiết đơn hàng và cập nhật tồn kho
             for (const item of items) {
-                const productResult = await request
-                    .input('productId2', sql.Int, item.product_id)
-                    .query('SELECT price FROM products WHERE product_id = @productId2');
+                const productResult = await client.query(
+                    'SELECT price FROM products WHERE product_id = $1',
+                    [item.product_id]
+                );
 
-                const product = productResult.recordset[0];
+                const product = productResult.rows[0];
 
-                // Thêm chi tiết đơn hàng
-                await request
-                    .input('orderId', sql.Int, order_id)
-                    .input('productId3', sql.Int, item.product_id)
-                    .input('quantity', sql.Int, item.quantity)
-                    .input('price', sql.Decimal(18,2), product.price)
-                    .input('color', sql.NVarChar, item.color || null)
-                    .input('size', sql.NVarChar, item.size || null)
-                    .query(`
-                        INSERT INTO order_details (order_id, product_id, quantity, price, color, size)
-                        VALUES (@orderId, @productId3, @quantity, @price, @color, @size)
-                    `);
+                await client.query(`
+                    INSERT INTO order_details (order_id, product_id, quantity, price, color, size)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [order_id, item.product_id, item.quantity, product.price, item.color || null, item.size || null]);
 
-                // Cập nhật tồn kho
-                await request
-                    .input('productId4', sql.Int, item.product_id)
-                    .input('quantity2', sql.Int, item.quantity)
-                    .query('UPDATE products SET stock = stock - @quantity2 WHERE product_id = @productId4');
+                await client.query(
+                    'UPDATE products SET stock = stock - $1 WHERE product_id = $2',
+                    [item.quantity, item.product_id]
+                );
 
-                // Xóa sản phẩm khỏi giỏ hàng
-                await request
-                    .input('userId2', sql.Int, req.user.user_id)
-                    .input('productId5', sql.Int, item.product_id)
-                    .query('DELETE FROM cart WHERE user_id = @userId2 AND product_id = @productId5');
+                await client.query(
+                    'DELETE FROM cart WHERE user_id = $1 AND product_id = $2',
+                    [req.user.user_id, item.product_id]
+                );
             }
 
-            await transaction.commit();
+            await client.query('COMMIT');
 
             res.status(201).json({
-                message: 'Đặt hàng thành công',
+                message: '�?t h�ng th�nh c�ng',
                 order_id: order_id,
                 total_amount: total_amount,
                 promotion_discount: promotion_discount
             });
         } catch (error) {
-            await transaction.rollback();
+            await client.query('ROLLBACK');
             console.error('Create order error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
+        } finally {
+            client.release();
         }
     },
 
-    // Lấy đơn hàng của user
     getUserOrders: async (req, res) => {
         try {
             const { page = 1, limit = 10 } = req.query;
             const offset = (page - 1) * limit;
             const pool = getPool();
 
-            const result = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .input('offset', sql.Int, offset)
-                .input('limit', sql.Int, parseInt(limit))
-                .query(`
-                    SELECT 
-                        o.order_id, o.total_amount, o.status, o.created_at,
-                        o.shipping_address, o.phone, o.notes,
-                        COUNT(od.order_detail_id) as item_count
-                    FROM orders o
-                    LEFT JOIN order_details od ON o.order_id = od.order_id
-                    WHERE o.user_id = @userId
-                    GROUP BY o.order_id, o.total_amount, o.status, o.created_at,
-                             o.shipping_address, o.phone, o.notes
-                    ORDER BY o.created_at DESC
-                    OFFSET @offset ROWS
-                    FETCH NEXT @limit ROWS ONLY
-                `);
+            const result = await pool.query(`
+                SELECT 
+                    o.order_id, o.total_amount, o.status, o.created_at,
+                    o.shipping_address, o.phone, o.notes,
+                    COUNT(od.order_detail_id) as item_count
+                FROM orders o
+                LEFT JOIN order_details od ON o.order_id = od.order_id
+                WHERE o.user_id = $1
+                GROUP BY o.order_id, o.total_amount, o.status, o.created_at,
+                         o.shipping_address, o.phone, o.notes
+                ORDER BY o.created_at DESC
+                LIMIT $2 OFFSET $3
+            `, [req.user.user_id, parseInt(limit), offset]);
 
-            // Đếm tổng số đơn hàng
-            const countResult = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .query('SELECT COUNT(*) as total FROM orders WHERE user_id = @userId');
+            const countResult = await pool.query(
+                'SELECT COUNT(*) as total FROM orders WHERE user_id = $1',
+                [req.user.user_id]
+            );
 
-            const total = countResult.recordset[0].total;
+            const total = countResult.rows[0].total;
             const totalPages = Math.ceil(total / limit);
 
             res.json({
-                orders: result.recordset,
+                orders: result.rows,
                 pagination: {
                     current_page: parseInt(page),
                     total_pages: totalPages,
-                    total_items: total,
+                    total_items: parseInt(total),
                     items_per_page: parseInt(limit)
                 }
             });
         } catch (error) {
             console.error('Get user orders error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
         }
     },
 
-    // Lấy chi tiết đơn hàng
     getOrderById: async (req, res) => {
         try {
             const { orderId } = req.params;
             const pool = getPool();
+            const isAdmin = req.user.role === 'admin';
 
-            // Lấy thông tin đơn hàng
-            const orderResult = await pool.request()
-                .input('orderId', sql.Int, orderId)
-                .input('userId', sql.Int, req.user.user_id)
-                .query(`
-                    SELECT o.*, u.username, u.email, u.full_name
-                    FROM orders o
-                    JOIN users u ON o.user_id = u.user_id
-                    WHERE o.order_id = @orderId 
-                    ${req.user.role !== 'admin' ? 'AND o.user_id = @userId' : ''}
-                `);
+            let query = `
+                SELECT o.*, u.username, u.email, u.full_name
+                FROM orders o
+                JOIN users u ON o.user_id = u.user_id
+                WHERE o.order_id = $1
+            `;
+            let params = [orderId];
 
-            if (orderResult.recordset.length === 0) {
-                return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+            if (!isAdmin) {
+                query += ' AND o.user_id = $2';
+                params.push(req.user.user_id);
             }
 
-            // Lấy chi tiết sản phẩm trong đơn hàng
-            const detailsResult = await pool.request()
-                .input('orderId', sql.Int, orderId)
-                .query(`
-                    SELECT 
-                        od.*, p.name, p.image_url, p.brand
-                    FROM order_details od
-                    JOIN products p ON od.product_id = p.product_id
-                    WHERE od.order_id = @orderId
-                `);
+            const orderResult = await pool.query(query, params);
 
-            const order = orderResult.recordset[0];
-            order.items = detailsResult.recordset;
+            if (orderResult.rows.length === 0) {
+                return res.status(404).json({ message: '�on h�ng kh�ng t?n t?i' });
+            }
+
+            const detailsResult = await pool.query(`
+                SELECT 
+                    od.*, p.name, p.image_url, p.brand
+                FROM order_details od
+                JOIN products p ON od.product_id = p.product_id
+                WHERE od.order_id = $1
+            `, [orderId]);
+
+            const order = orderResult.rows[0];
+            order.items = detailsResult.rows;
 
             res.json({ order });
         } catch (error) {
             console.error('Get order by id error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
         }
     },
 
-    // Hủy đơn hàng (chỉ khi status = 'pending')
     cancelOrder: async (req, res) => {
-        const transaction = new sql.Transaction(getPool());
+        const pool = getPool();
+        const client = await pool.connect();
         
         try {
-            await transaction.begin();
-            const request = new sql.Request(transaction);
-
+            await client.query('BEGIN');
             const { orderId } = req.params;
 
-            // Kiểm tra đơn hàng
-            const orderResult = await request
-                .input('orderId', sql.Int, orderId)
-                .input('userId', sql.Int, req.user.user_id)
-                .query(`
-                    SELECT status FROM orders 
-                    WHERE order_id = @orderId AND user_id = @userId
-                `);
+            const orderResult = await client.query(
+                'SELECT status FROM orders WHERE order_id = $1 AND user_id = $2',
+                [orderId, req.user.user_id]
+            );
 
-            if (orderResult.recordset.length === 0) {
-                await transaction.rollback();
-                return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+            if (orderResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ message: '�on h�ng kh�ng t?n t?i' });
             }
 
-            const order = orderResult.recordset[0];
+            const order = orderResult.rows[0];
             if (order.status !== 'pending') {
-                await transaction.rollback();
-                return res.status(400).json({ message: 'Không thể hủy đơn hàng này' });
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: 'Kh�ng th? h?y don h�ng n�y' });
             }
 
-            // Hoàn trả tồn kho
-            const itemsResult = await request
-                .input('orderId2', sql.Int, orderId)
-                .query('SELECT product_id, quantity FROM order_details WHERE order_id = @orderId2');
+            const itemsResult = await client.query(
+                'SELECT product_id, quantity FROM order_details WHERE order_id = $1',
+                [orderId]
+            );
 
-            for (const item of itemsResult.recordset) {
-                await request
-                    .input('productId', sql.Int, item.product_id)
-                    .input('quantity', sql.Int, item.quantity)
-                    .query('UPDATE products SET stock = stock + @quantity WHERE product_id = @productId');
+            for (const item of itemsResult.rows) {
+                await client.query(
+                    'UPDATE products SET stock = stock + $1 WHERE product_id = $2',
+                    [item.quantity, item.product_id]
+                );
             }
 
-            // Cập nhật trạng thái đơn hàng
-            await request
-                .input('orderId3', sql.Int, orderId)
-                .query("UPDATE orders SET status = 'cancelled', updated_at = GETDATE() WHERE order_id = @orderId3");
+            await client.query(
+                "UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE order_id = $1",
+                [orderId]
+            );
 
-            await transaction.commit();
-            res.json({ message: 'Hủy đơn hàng thành công' });
+            await client.query('COMMIT');
+            res.json({ message: 'H?y don h�ng th�nh c�ng' });
         } catch (error) {
-            await transaction.rollback();
+            await client.query('ROLLBACK');
             console.error('Cancel order error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
+        } finally {
+            client.release();
         }
     },
 
-    // Lấy tất cả đơn hàng (Admin only)
     getAllOrders: async (req, res) => {
         try {
             const { 
@@ -326,42 +293,31 @@ const orderController = {
             const pool = getPool();
 
             let whereConditions = ['1=1'];
-            let queryParams = [];
+            let params = [];
+            let paramIndex = 1;
 
-            // Lọc theo trạng thái
             if (status) {
-                whereConditions.push('o.status = @status');
-                queryParams.push({ name: 'status', type: sql.NVarChar, value: status });
+                whereConditions.push(`o.status = $${paramIndex++}`);
+                params.push(status);
             }
-
-            // Lọc theo user
             if (user_id) {
-                whereConditions.push('o.user_id = @user_id');
-                queryParams.push({ name: 'user_id', type: sql.Int, value: parseInt(user_id) });
+                whereConditions.push(`o.user_id = $${paramIndex++}`);
+                params.push(parseInt(user_id));
             }
-
-            // Lọc theo ngày
             if (from_date) {
-                whereConditions.push('o.created_at >= @from_date');
-                queryParams.push({ name: 'from_date', type: sql.DateTime, value: new Date(from_date) });
+                whereConditions.push(`o.created_at >= $${paramIndex++}`);
+                params.push(new Date(from_date));
             }
             if (to_date) {
-                whereConditions.push('o.created_at <= @to_date');
-                queryParams.push({ name: 'to_date', type: sql.DateTime, value: new Date(to_date) });
+                whereConditions.push(`o.created_at <= $${paramIndex++}`);
+                params.push(new Date(to_date));
             }
 
             const whereClause = whereConditions.join(' AND ');
 
-            let request = pool.request()
-                .input('offset', sql.Int, offset)
-                .input('limit', sql.Int, parseInt(limit));
-
-            // Add dynamic parameters
-            queryParams.forEach(param => {
-                request = request.input(param.name, param.type, param.value);
-            });
-
-            const result = await request.query(`
+            const queryParams = [...params, parseInt(limit), offset];
+            
+            const result = await pool.query(`
                 SELECT 
                     o.order_id, o.total_amount, o.status, o.created_at,
                     o.shipping_address, o.phone,
@@ -374,39 +330,31 @@ const orderController = {
                 GROUP BY o.order_id, o.total_amount, o.status, o.created_at,
                          o.shipping_address, o.phone, u.username, u.full_name, u.email
                 ORDER BY o.created_at DESC
-                OFFSET @offset ROWS
-                FETCH NEXT @limit ROWS ONLY
-            `);
+                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+            `, queryParams);
 
-            // Đếm tổng số đơn hàng
-            let countRequest = pool.request();
-            queryParams.forEach(param => {
-                countRequest = countRequest.input(param.name, param.type, param.value);
-            });
-
-            const countResult = await countRequest.query(`
+            const countResult = await pool.query(`
                 SELECT COUNT(*) as total FROM orders o WHERE ${whereClause}
-            `);
+            `, params);
 
-            const total = countResult.recordset[0].total;
+            const total = countResult.rows[0].total;
             const totalPages = Math.ceil(total / limit);
 
             res.json({
-                orders: result.recordset,
+                orders: result.rows,
                 pagination: {
                     current_page: parseInt(page),
                     total_pages: totalPages,
-                    total_items: total,
+                    total_items: parseInt(total),
                     items_per_page: parseInt(limit)
                 }
             });
         } catch (error) {
             console.error('Get all orders error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
         }
     },
 
-    // Cập nhật trạng thái đơn hàng (Admin only)
     updateOrderStatus: async (req, res) => {
         try {
             const { orderId } = req.params;
@@ -414,29 +362,27 @@ const orderController = {
 
             const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
             if (!validStatuses.includes(status)) {
-                return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+                return res.status(400).json({ message: 'Tr?ng th�i kh�ng h?p l?' });
             }
 
             const pool = getPool();
-            await pool.request()
-                .input('orderId', sql.Int, orderId)
-                .input('status', sql.NVarChar, status)
-                .query('UPDATE orders SET status = @status, updated_at = GETDATE() WHERE order_id = @orderId');
+            await pool.query(
+                'UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2',
+                [status, orderId]
+            );
 
-            res.json({ message: 'Cập nhật trạng thái đơn hàng thành công' });
+            res.json({ message: 'C?p nh?t tr?ng th�i don h�ng th�nh c�ng' });
         } catch (error) {
             console.error('Update order status error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
         }
     },
 
-    // Thống kê đơn hàng (Admin only)
     getOrderStats: async (req, res) => {
         try {
             const pool = getPool();
 
-            // Thống kê tổng quan
-            const overviewResult = await pool.request().query(`
+            const overviewResult = await pool.query(`
                 SELECT 
                     COUNT(*) as total_orders,
                     SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
@@ -448,22 +394,20 @@ const orderController = {
                 FROM orders
             `);
 
-            // Doanh thu theo tháng (12 tháng gần nhất)
-            const revenueResult = await pool.request().query(`
+            const revenueResult = await pool.query(`
                 SELECT 
-                    YEAR(created_at) as year,
-                    MONTH(created_at) as month,
+                    EXTRACT(YEAR FROM created_at) as year,
+                    EXTRACT(MONTH FROM created_at) as month,
                     SUM(total_amount) as revenue,
                     COUNT(*) as order_count
                 FROM orders
-                WHERE status = 'delivered' AND created_at >= DATEADD(month, -12, GETDATE())
-                GROUP BY YEAR(created_at), MONTH(created_at)
+                WHERE status = 'delivered' AND created_at >= NOW() - INTERVAL '12 months'
+                GROUP BY EXTRACT(YEAR FROM created_at), EXTRACT(MONTH FROM created_at)
                 ORDER BY year DESC, month DESC
             `);
 
-            // Sản phẩm bán chạy nhất
-            const topProductsResult = await pool.request().query(`
-                SELECT TOP 10
+            const topProductsResult = await pool.query(`
+                SELECT 
                     p.product_id, p.name, p.image_url,
                     SUM(od.quantity) as total_sold,
                     SUM(od.quantity * od.price) as revenue
@@ -473,16 +417,17 @@ const orderController = {
                 WHERE o.status = 'delivered'
                 GROUP BY p.product_id, p.name, p.image_url
                 ORDER BY total_sold DESC
+                LIMIT 10
             `);
 
             res.json({
-                overview: overviewResult.recordset[0],
-                monthly_revenue: revenueResult.recordset,
-                top_products: topProductsResult.recordset
+                overview: overviewResult.rows[0],
+                monthly_revenue: revenueResult.rows,
+                top_products: topProductsResult.rows
             });
         } catch (error) {
             console.error('Get order stats error:', error);
-            res.status(500).json({ message: 'Lỗi server', error: error.message });
+            res.status(500).json({ message: 'L?i server', error: error.message });
         }
     }
 };
