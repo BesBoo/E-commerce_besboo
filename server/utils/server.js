@@ -100,13 +100,13 @@ const loadRoute = (routePath, routeName) => {
 
 // Load all routes with error handling
 console.log('\n=== Loading Routes ===');
-const userRoutes = loadRoute('../routes/userRouters', 'userRouters');
-const productRoutes = loadRoute('../routes/productRoutes', 'productRoutes');
-const orderRoutes = loadRoute('../routes/orderRouters', 'orderRouters');
-const cartRoutes = loadRoute('../routes/cartRoutes', 'cartRoutes');
-const promotionRoutes = loadRoute('../routes/promotionRoutes', 'promotionRoutes');
-const otherRoutes = loadRoute('../routes/otherRoutes', 'otherRoutes');
-const contactRoutes = loadRoute('../routes/contactRoutes', 'contactRoutes');
+const userRoutes = require('../routes/userRouters');
+const productRoutes = require('../routes/productRoutes');
+const orderRoutes = require('../routes/orderRouters');
+const cartRoutes = require('../routes/cartRoutes');
+const promotionRoutes = require('../routes/promotionRoutes');
+const otherRoutes = require('../routes/otherRoutes');
+const contactRoutes = require('../routes/contactRoutes');
 
 // Validate routes before using them
 const validateAndUseRoute = (app, path, router, routeName) => {
@@ -140,13 +140,13 @@ const validateAndUseRoute = (app, path, router, routeName) => {
 
 // Mount API Routes with validation
 console.log('\n=== Mounting Routes ===');
-validateAndUseRoute(app, '/api/users', userRoutes, 'userRoutes');
-validateAndUseRoute(app, '/api/products', productRoutes, 'productRoutes');
-validateAndUseRoute(app, '/api/orders', orderRoutes, 'orderRoutes');
-validateAndUseRoute(app, '/api/cart', cartRoutes, 'cartRoutes');
-validateAndUseRoute(app, '/api/promotions', promotionRoutes, 'promotionRoutes');
-validateAndUseRoute(app, '/api', otherRoutes, 'otherRoutes');
-validateAndUseRoute(app, '/api/contact', contactRoutes, 'contactRoutes');
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/promotions', promotionRoutes);
+app.use('/api', otherRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -313,5 +313,6 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
 
 
