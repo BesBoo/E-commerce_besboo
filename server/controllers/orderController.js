@@ -214,12 +214,12 @@ const orderController = {
     // Lấy chi tiết đơn hàng
     getOrderById: async (req, res) => {
         try {
-            const { id } = req.params;
+            const { orderId } = req.params;
             const pool = getPool();
 
             // Lấy thông tin đơn hàng
             const orderResult = await pool.request()
-                .input('orderId', sql.Int, id)
+                .input('orderId', sql.Int, orderId)
                 .input('userId', sql.Int, req.user.user_id)
                 .query(`
                     SELECT o.*, u.username, u.email, u.full_name
@@ -235,7 +235,7 @@ const orderController = {
 
             // Lấy chi tiết sản phẩm trong đơn hàng
             const detailsResult = await pool.request()
-                .input('orderId', sql.Int, id)
+                .input('orderId', sql.Int, orderId)
                 .query(`
                     SELECT 
                         od.*, p.name, p.image_url, p.brand
@@ -262,11 +262,11 @@ const orderController = {
             await transaction.begin();
             const request = new sql.Request(transaction);
 
-            const { id } = req.params;
+            const { orderId } = req.params;
 
             // Kiểm tra đơn hàng
             const orderResult = await request
-                .input('orderId', sql.Int, id)
+                .input('orderId', sql.Int, orderId)
                 .input('userId', sql.Int, req.user.user_id)
                 .query(`
                     SELECT status FROM orders 
@@ -286,7 +286,7 @@ const orderController = {
 
             // Hoàn trả tồn kho
             const itemsResult = await request
-                .input('orderId2', sql.Int, id)
+                .input('orderId2', sql.Int, orderId)
                 .query('SELECT product_id, quantity FROM order_details WHERE order_id = @orderId2');
 
             for (const item of itemsResult.recordset) {
@@ -298,7 +298,7 @@ const orderController = {
 
             // Cập nhật trạng thái đơn hàng
             await request
-                .input('orderId3', sql.Int, id)
+                .input('orderId3', sql.Int, orderId)
                 .query("UPDATE orders SET status = 'cancelled', updated_at = GETDATE() WHERE order_id = @orderId3");
 
             await transaction.commit();
@@ -409,7 +409,7 @@ const orderController = {
     // Cập nhật trạng thái đơn hàng (Admin only)
     updateOrderStatus: async (req, res) => {
         try {
-            const { id } = req.params;
+            const { orderId } = req.params;
             const { status } = req.body;
 
             const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
@@ -419,7 +419,7 @@ const orderController = {
 
             const pool = getPool();
             await pool.request()
-                .input('orderId', sql.Int, id)
+                .input('orderId', sql.Int, orderId)
                 .input('status', sql.NVarChar, status)
                 .query('UPDATE orders SET status = @status, updated_at = GETDATE() WHERE order_id = @orderId');
 
