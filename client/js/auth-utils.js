@@ -27,7 +27,7 @@ const AuthUtils = {
     // Redirect to login with current page as return URL
     redirectToLogin() {
         const currentPath = window.location.pathname + window.location.search;
-        const loginUrl = `/client/login.html?redirect=${encodeURIComponent(currentPath)}`;
+        const loginUrl = `./login.html?redirect=${encodeURIComponent(currentPath)}`;
         window.location.href = loginUrl;
     },
     

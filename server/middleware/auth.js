@@ -1,6 +1,6 @@
 // middleware/auth.js - Fixed version
 const jwt = require('jsonwebtoken');
-const { getPool, sql } = require('../config/db');
+const { getPool } = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -22,24 +22,23 @@ const authenticateToken = async (req, res, next) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         console.log('✅ Token decoded:', { userId: decoded.userId, username: decoded.username, role: decoded.role });
         
-        // Lấy thông tin user từ database
+        // Lấy thông tin user từ database (PostgreSQL / Supabase)
         const pool = getPool();
-        const result = await pool.request()
-            .input('userId', sql.Int, decoded.userId)
-            .query(`
-                SELECT user_id, username, email, role, full_name 
-                FROM users 
-                WHERE user_id = @userId
-            `);
+        const result = await pool.query(
+            `SELECT user_id, username, email, role, full_name 
+             FROM users 
+             WHERE user_id = $1`,
+            [decoded.userId]
+        );
 
-        console.log('👤 User lookup result:', result.recordset.length, 'users found');
+        console.log('👤 User lookup result:', result.rows.length, 'users found');
 
-        if (result.recordset.length === 0) {
+        if (result.rows.length === 0) {
             console.log('❌ User not found in database');
             return res.status(401).json({ message: 'Invalid token - user not found' });
         }
 
-        req.user = result.recordset[0];
+        req.user = result.rows[0];
         console.log('✅ User authenticated:', { 
             user_id: req.user.user_id, 
             username: req.user.username, 
