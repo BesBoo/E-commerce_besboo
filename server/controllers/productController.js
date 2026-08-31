@@ -116,12 +116,13 @@ const productController = {
         } catch (error) {
             console.error('Get products error:', error);
             res.status(500).json({ 
-                message: 'Không th? t?i danh sách s?n ph?m',
+                message: 'Khï¿½ng th? t?i danh sï¿½ch s?n ph?m',
                 error: error.message
             });
         }
     },
 
+    
     getAdminProducts: async (req, res) => {
         try {
             const pool = getPool();
@@ -142,22 +143,22 @@ const productController = {
             let paramIndex = 1;
             
             if (category) {
-                whereConditions.push(c.name = $);
+                whereConditions.push(`c.name = ${paramIndex++}`);
                 params.push(category);
             }
             
             if (search) {
-                whereConditions.push((p.name ILIKE $ OR p.brand ILIKE $));
-                params.push(%%);
+                whereConditions.push(`(p.name ILIKE ${paramIndex} OR p.brand ILIKE ${paramIndex})`);
+                params.push(`%${search}%`);
                 paramIndex++;
             }
             
             if (is_featured === 'true') {
-                whereConditions.push(p.is_featured = true);
+                whereConditions.push(`p.is_featured = true`);
             }
             
             if (is_new === 'true') {
-                whereConditions.push(p.is_new = true);
+                whereConditions.push(`p.is_new = true`);
             }
 
             let orderBy = 'p.created_at DESC, p.product_id DESC';
@@ -182,28 +183,28 @@ const productController = {
                     break;
             }
 
-            const query = 
+            const query = `
                 SELECT 
                     p.product_id, p.name, p.price, p.image_url,
                     p.discount_percent, p.brand, p.stock, p.created_at, p.updated_at,
                     p.is_featured, p.is_new, c.name as category_name
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
-                WHERE 
-                ORDER BY 
-                LIMIT $ OFFSET $
-            ;
+                WHERE ${whereConditions.join(' AND ')}
+                ORDER BY ${orderBy}
+                LIMIT ${paramIndex++} OFFSET ${paramIndex++}
+            `;
             
             params.push(parseInt(limit), offset);
 
             const result = await pool.query(query, params);
 
-            const countQuery = 
+            const countQuery = `
                 SELECT COUNT(*) 
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
-                WHERE 
-            ;
+                WHERE ${whereConditions.join(' AND ')}
+            `;
             
             const countParams = params.slice(0, -2);
             const countResult = await pool.query(countQuery, countParams);
@@ -221,7 +222,7 @@ const productController = {
 
         } catch (error) {
             console.error('Get admin products error:', error);
-            res.status(500).json({ message: 'L?i server', error: error.message });
+            res.status(500).json({ message: 'Lá»—i server', error: error.message });
         }
     },
 
@@ -249,7 +250,7 @@ const productController = {
             `, [parseInt(productId)]);
 
             if (result.rows.length === 0) {
-                return res.status(404).json({ success: false, message: 'S?n ph?m không t?n t?i' });
+                return res.status(404).json({ success: false, message: 'S?n ph?m khï¿½ng t?n t?i' });
             }
 
             const reviews = await pool.query(`
@@ -302,7 +303,7 @@ const productController = {
             res.json({ products: featuredProducts, total: featuredProducts.length });
         } catch (error) {
             console.error('Get featured products error:', error);
-            res.status(500).json({ message: 'Không th? t?i s?n ph?m n?i b?t', error: error.message });
+            res.status(500).json({ message: 'Khï¿½ng th? t?i s?n ph?m n?i b?t', error: error.message });
         }
     },
 
@@ -328,7 +329,7 @@ const productController = {
             res.json({ products: newProducts, total: newProducts.length });
         } catch (error) {
             console.error('Get new products error:', error);
-            res.status(500).json({ message: 'Không th? t?i s?n ph?m m?i', error: error.message });
+            res.status(500).json({ message: 'Khï¿½ng th? t?i s?n ph?m m?i', error: error.message });
         }
     },
 
@@ -359,7 +360,7 @@ const productController = {
             ]);
 
             res.status(201).json({
-                message: 'T?o s?n ph?m thành công',
+                message: 'T?o s?n ph?m thï¿½nh cï¿½ng',
                 product_id: result.rows[0].product_id
             });
         } catch (error) {
@@ -395,7 +396,7 @@ const productController = {
                 id
             ]);
 
-            res.json({ message: 'C?p nh?t s?n ph?m thành công' });
+            res.json({ message: 'C?p nh?t s?n ph?m thï¿½nh cï¿½ng' });
         } catch (error) {
             console.error('Update product error:', error);
             res.status(500).json({ message: 'L?i server', error: error.message });
@@ -409,7 +410,7 @@ const productController = {
 
             await pool.query('DELETE FROM products WHERE product_id = $1', [id]);
 
-            res.json({ message: 'Xóa s?n ph?m thành công' });
+            res.json({ message: 'Xï¿½a s?n ph?m thï¿½nh cï¿½ng' });
         } catch (error) {
             console.error('Delete product error:', error);
             res.status(500).json({ message: 'L?i server', error: error.message });
@@ -430,7 +431,7 @@ const productController = {
             `, [req.user.user_id, productId]);
 
             if (parseInt(purchaseCheck.rows[0].count) === 0) {
-                return res.status(400).json({ message: 'B?n c?n mua s?n ph?m này tru?c khi dánh giá' });
+                return res.status(400).json({ message: 'B?n c?n mua s?n ph?m nï¿½y tru?c khi dï¿½nh giï¿½' });
             }
 
             const existingReview = await pool.query(
@@ -439,7 +440,7 @@ const productController = {
             );
 
             if (existingReview.rows.length > 0) {
-                return res.status(400).json({ message: 'B?n dã dánh giá s?n ph?m này r?i' });
+                return res.status(400).json({ message: 'B?n dï¿½ dï¿½nh giï¿½ s?n ph?m nï¿½y r?i' });
             }
 
             await pool.query(`
@@ -447,7 +448,7 @@ const productController = {
                 VALUES ($1, $2, $3, $4)
             `, [req.user.user_id, productId, rating, comment]);
 
-            res.status(201).json({ message: 'Thêm dánh giá thành công' });
+            res.status(201).json({ message: 'Thï¿½m dï¿½nh giï¿½ thï¿½nh cï¿½ng' });
         } catch (error) {
             console.error('Add review error:', error);
             res.status(500).json({ message: 'L?i server', error: error.message });
@@ -456,4 +457,3 @@ const productController = {
 };
 
 module.exports = productController;
-
