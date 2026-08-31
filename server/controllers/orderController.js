@@ -366,10 +366,7 @@ const orderController = {
             }
 
             const pool = getPool();
-            await pool.query(
-                'UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2',
-                [status, orderId]
-            );
+            $result = await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2 RETURNING *', [status, orderId]); if ($result.rowCount === 0) { return res.status(404).json({ message: 'Không tìm th?y don hàng' }); }
 
             res.json({ message: 'C?p nh?t tr?ng thái don hàng thành công' });
         } catch (error) {
@@ -433,3 +430,4 @@ const orderController = {
 };
 
 module.exports = orderController;
+
