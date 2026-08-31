@@ -27,7 +27,7 @@ const connectDB = async () => {
 
 const getPool = () => {
     if (!pool) {
-        throw new Error('Database not connected. Call connectDB() first.');
+        pool = new Pool(config);
     }
     return pool;
 };
