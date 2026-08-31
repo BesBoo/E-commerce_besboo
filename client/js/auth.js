@@ -28,7 +28,13 @@ const Auth = {
                     const redirectUrl = urlParams.get('redirect');
                     
                     // Redirect to intended page or home
-                    window.location.href = redirectUrl || './index.html';
+                                        let targetUrl = './index.html';
+                    if (response.user && response.user.role === 'admin') {
+                        targetUrl = './admin.html';
+                    } else if (redirectUrl) {
+                        targetUrl = redirectUrl;
+                    }
+                    window.location.href = targetUrl;
                 }, 1000);
                 
                 return response;
@@ -440,3 +446,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Make Auth available globally
 window.Auth = Auth;
+

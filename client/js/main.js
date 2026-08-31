@@ -290,9 +290,17 @@ function checkAuthStatus() {
     }
     
     // Redirect if authenticated and on guest page
-    if (token && guestPages.includes(currentPath)) {
-        window.location.href = './index.html';
+        if (token && guestPages.includes(currentPath)) {
+        window.location.href = (user && user.role === 'admin') ? './admin.html' : './index.html';
         return;
+    }
+    
+    if (token && user && user.role === 'admin') {
+        const isAdminPage = adminPages.some(page => currentPath.includes(page));
+        if (!isAdminPage) {
+            window.location.href = './admin.html';
+            return;
+        }
     }
     
     // Redirect if not admin and on admin page
@@ -838,3 +846,5 @@ const lazyLoadCSS = `
 const style = document.createElement('style');
 style.textContent = lazyLoadCSS;
 document.head.appendChild(style);
+
+
