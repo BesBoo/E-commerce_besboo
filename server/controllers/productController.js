@@ -122,6 +122,109 @@ const productController = {
         }
     },
 
+    getAdminProducts: async (req, res) => {
+        try {
+            const pool = getPool();
+            const { 
+                page = 1, 
+                limit = 12, 
+                category, 
+                search,
+                is_featured,
+                is_new,
+                sort = 'newest'
+            } = req.query;
+
+            const offset = (parseInt(page) - 1) * parseInt(limit);
+            
+            let whereConditions = ['1=1'];
+            let params = [];
+            let paramIndex = 1;
+            
+            if (category) {
+                whereConditions.push(c.name = $);
+                params.push(category);
+            }
+            
+            if (search) {
+                whereConditions.push((p.name ILIKE $ OR p.brand ILIKE $));
+                params.push(%%);
+                paramIndex++;
+            }
+            
+            if (is_featured === 'true') {
+                whereConditions.push(p.is_featured = true);
+            }
+            
+            if (is_new === 'true') {
+                whereConditions.push(p.is_new = true);
+            }
+
+            let orderBy = 'p.created_at DESC, p.product_id DESC';
+            switch (sort) {
+                case 'price-asc':
+                    orderBy = 'p.price ASC, p.product_id DESC';
+                    break;
+                case 'price-desc':
+                    orderBy = 'p.price DESC, p.product_id DESC';
+                    break;
+                case 'stock-asc':
+                    orderBy = 'p.stock ASC, p.product_id DESC';
+                    break;
+                case 'stock-desc':
+                    orderBy = 'p.stock DESC, p.product_id DESC';
+                    break;
+                case 'name-asc':
+                    orderBy = 'p.name ASC, p.product_id DESC';
+                    break;
+                case 'name-desc':
+                    orderBy = 'p.name DESC, p.product_id DESC';
+                    break;
+            }
+
+            const query = 
+                SELECT 
+                    p.product_id, p.name, p.price, p.image_url,
+                    p.discount_percent, p.brand, p.stock, p.created_at, p.updated_at,
+                    p.is_featured, p.is_new, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE 
+                ORDER BY 
+                LIMIT $ OFFSET $
+            ;
+            
+            params.push(parseInt(limit), offset);
+
+            const result = await pool.query(query, params);
+
+            const countQuery = 
+                SELECT COUNT(*) 
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE 
+            ;
+            
+            const countParams = params.slice(0, -2);
+            const countResult = await pool.query(countQuery, countParams);
+            const totalProducts = parseInt(countResult.rows[0].count);
+
+            res.json({
+                products: result.rows,
+                pagination: {
+                    current_page: parseInt(page),
+                    total_pages: Math.ceil(totalProducts / limit),
+                    total_products: totalProducts,
+                    limit: parseInt(limit)
+                }
+            });
+
+        } catch (error) {
+            console.error('Get admin products error:', error);
+            res.status(500).json({ message: 'L?i server', error: error.message });
+        }
+    },
+
     getProductById: async (req, res) => {
         try {
             const { productId } = req.params;
@@ -353,3 +456,4 @@ const productController = {
 };
 
 module.exports = productController;
+

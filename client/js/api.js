@@ -1106,6 +1106,32 @@ const adminAPI = {
             method: 'PUT',
             body: JSON.stringify({ userId, role })
         });
+    },
+
+    // Admin Products API
+    async getAllProducts(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return await apiRequest(/products/admin/all?);
+    },
+
+    async createProduct(productData) {
+        return await apiRequest('/products', {
+            method: 'POST',
+            body: JSON.stringify(productData)
+        });
+    },
+
+    async updateProduct(productId, productData) {
+        return await apiRequest(/products/, {
+            method: 'PUT',
+            body: JSON.stringify(productData)
+        });
+    },
+
+    async deleteProduct(productId) {
+        return await apiRequest(/products/, {
+            method: 'DELETE'
+        });
     }
 };
 
@@ -1322,4 +1348,5 @@ window.Utils = {
     setAuth,
     clearAuth
 };
+
 

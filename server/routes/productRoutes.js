@@ -54,6 +54,7 @@ router.post('/', authenticateToken, requireAdmin, productValidation, productCont
 
 // CRITICAL: Route với parameter phải đặt cuối cùng để tránh xung đột
 // Route này sẽ match mọi GET request dạng /products/:anything
+router.get('/admin/all', authenticateToken, requireAdmin, productController.getAdminProducts);
 router.get('/:productId', productController.getProductById);
 router.put('/:productId', authenticateToken, requireAdmin, productValidation, productController.updateProduct);
 router.delete('/:productId', authenticateToken, requireAdmin, productController.deleteProduct);

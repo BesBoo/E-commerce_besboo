@@ -423,6 +423,249 @@ const updateOrderStatus = async () => {
 };
 
 // ----------------------------------------------------
+// PRODUCT LOGIC
+// ----------------------------------------------------
+let currentProductPage = 1;
+
+const loadProducts = async (page = 1) => {
+    try {
+        currentProductPage = page;
+        
+        const searchQuery = document.getElementById('product-search').value;
+        const categoryFilter = document.getElementById('product-category-filter').value;
+        const sortFilter = document.getElementById('product-sort').value;
+        
+        let query = /products/admin/all?page=${page}&limit=10&sort=${sortFilter};
+        if (searchQuery) query += &search=${encodeURIComponent(searchQuery)};
+        if (categoryFilter) query += &category=${encodeURIComponent(categoryFilter)};
+        
+        const data = await API.admin.getAllProducts({
+            page, limit: 10, sort: sortFilter, search: searchQuery, category: categoryFilter
+        });
+        
+        const tbody = document.getElementById('products-table-body');
+        tbody.innerHTML = '';
+        
+        if (!data.products || data.products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No products found</td></tr>';
+            document.getElementById('products-pagination').innerHTML = '';
+            document.getElementById('total-products-count').innerText = 'Total: 0';
+            return;
+        }
+        
+        document.getElementById('total-products-count').innerText = Total: $;
+        
+        data.products.forEach(product => {
+            const tr = document.createElement('tr');
+            
+            let badges = '';
+            if (product.is_featured) badges += '<span class="badge badge-pending" style="background:#f8961e; margin-right:5px">Featured</span>';
+            if (product.is_new) badges += '<span class="badge badge-delivered" style="background:#4cc9f0">New</span>';
+            if (!badges && product.stock > 0) badges = '<span class="badge" style="background:#e2e8f0; color:#4a5568">Normal</span>';
+            if (product.stock <= 0) badges = '<span class="badge badge-cancelled">Out of Stock</span>';
+            
+            tr.innerHTML = 
+                <td><img src="${product.image_url}" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                <td>
+                    <div style="font-weight: 500;">${product.name}</div>
+                    <div style="font-size: 0.8rem; color: #718096;">${product.brand || 'No Brand'}</div>
+                </td>
+                <td>${product.category_name}</td>
+                <td>${formatCurrency(product.price)}</td>
+                <td>${product.stock}</td>
+                <td>${badges}</td>
+                <td>
+                    <button class="btn btn-outline btn-sm" onclick="editProduct(${product.product_id})" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-outline btn-sm" onclick="deleteProduct(${product.product_id}, '${product.name.replace(/'/g, "\\'")}')" title="Delete" style="color: var(--danger); border-color: #fbd5e5;"><i class="fas fa-trash"></i></button>
+                </td>
+            ;
+            tbody.appendChild(tr);
+        });
+        
+        renderProductPagination(data.pagination);
+        
+    } catch (error) {
+        showToast('Failed to load products', 'error');
+        console.error(error);
+    }
+};
+
+const renderProductPagination = (pagination) => {
+    const container = document.getElementById('products-pagination');
+    container.innerHTML = '';
+    if (!pagination || pagination.total_pages <= 1) return;
+    for (let i = 1; i <= pagination.total_pages; i++) {
+        const btn = document.createElement('button');
+        btn.className = page-btn $;
+        btn.innerText = i;
+        btn.onclick = () => loadProducts(i);
+        container.appendChild(btn);
+    }
+};
+
+const loadCategoriesForSelect = async () => {
+    try {
+        const data = await API.categories.getCategories();
+        const filterSelect = document.getElementById('product-category-filter');
+        const modalSelect = document.getElementById('product-category');
+        
+        data.categories.forEach(cat => {
+            // Filter dropdown uses category name as value in the API
+            filterSelect.add(new Option(cat.name, cat.name));
+            // Modal uses category_id
+            modalSelect.add(new Option(cat.name, cat.category_id));
+        });
+    } catch (error) {
+        console.error('Failed to load categories', error);
+    }
+};
+
+let currentEditingProductId = null;
+
+const openProductModal = () => {
+    currentEditingProductId = null;
+    document.getElementById('product-modal-title').innerText = 'Add Product';
+    document.getElementById('product-form').reset();
+    document.getElementById('product-id').value = '';
+    document.getElementById('main-image-preview').style.display = 'none';
+    document.getElementById('main-image-preview').src = '';
+    document.getElementById('product-modal').classList.add('show');
+};
+
+const closeProductModal = () => {
+    document.getElementById('product-modal').classList.remove('show');
+};
+
+const updateImagePreview = (url, imgId) => {
+    const img = document.getElementById(imgId);
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+    } else {
+        img.style.display = 'none';
+    }
+};
+
+const editProduct = async (id) => {
+    try {
+        const response = await API.products.getProduct(id);
+        const product = response.product || response;
+        
+        currentEditingProductId = id;
+        document.getElementById('product-modal-title').innerText = Edit Product #${id};
+        document.getElementById('product-id').value = id;
+        
+        document.getElementById('product-name').value = product.name || '';
+        document.getElementById('product-category').value = product.category_id || '';
+        document.getElementById('product-price').value = product.price || 0;
+        document.getElementById('product-stock').value = product.stock || 0;
+        document.getElementById('product-discount').value = product.discount_percent || 0;
+        document.getElementById('product-brand').value = product.brand || '';
+        document.getElementById('product-description').value = product.description || '';
+        document.getElementById('product-image').value = product.image_url || '';
+        updateImagePreview(product.image_url, 'main-image-preview');
+        
+        document.getElementById('product-featured').checked = product.is_featured || false;
+        document.getElementById('product-new').checked = product.is_new || false;
+        
+        let colors = product.colors;
+        if (typeof colors === 'string') {
+            try { colors = JSON.parse(colors); } catch(e) {}
+        }
+        document.getElementById('product-colors').value = Array.isArray(colors) ? colors.join(', ') : (colors || '');
+        
+        let sizes = product.sizes;
+        if (typeof sizes === 'string') {
+            try { sizes = JSON.parse(sizes); } catch(e) {}
+        }
+        document.getElementById('product-sizes').value = Array.isArray(sizes) ? sizes.join(', ') : (sizes || '');
+        
+        let images = product.images;
+        if (typeof images === 'string') {
+            try { images = JSON.parse(images); } catch(e) {}
+        }
+        document.getElementById('product-images-list').value = Array.isArray(images) ? images.join('\n') : (images || '');
+        
+        document.getElementById('product-modal').classList.add('show');
+    } catch (error) {
+        showToast('Failed to fetch product details', 'error');
+        console.error(error);
+    }
+};
+
+const saveProduct = async () => {
+    const form = document.getElementById('product-form');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const btn = document.getElementById('btn-save-product');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        const colorsStr = document.getElementById('product-colors').value;
+        const colors = colorsStr ? colorsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+        
+        const sizesStr = document.getElementById('product-sizes').value;
+        const sizes = sizesStr ? sizesStr.split(',').map(s => s.trim()).filter(s => s) : [];
+        
+        const imagesStr = document.getElementById('product-images-list').value;
+        const images = imagesStr ? imagesStr.split('\n').map(s => s.trim()).filter(s => s) : [];
+
+        const payload = {
+            name: document.getElementById('product-name').value,
+            category_id: parseInt(document.getElementById('product-category').value),
+            price: parseFloat(document.getElementById('product-price').value),
+            stock: parseInt(document.getElementById('product-stock').value),
+            discount_percent: parseInt(document.getElementById('product-discount').value || 0),
+            brand: document.getElementById('product-brand').value,
+            description: document.getElementById('product-description').value,
+            image_url: document.getElementById('product-image').value,
+            is_featured: document.getElementById('product-featured').checked,
+            is_new: document.getElementById('product-new').checked,
+            colors,
+            sizes,
+            images
+        };
+        
+        if (currentEditingProductId) {
+            await API.admin.updateProduct(currentEditingProductId, payload);
+            showToast('Product updated successfully', 'success');
+        } else {
+            await API.admin.createProduct(payload);
+            showToast('Product created successfully', 'success');
+        }
+        
+        closeProductModal();
+        loadProducts(currentProductPage);
+        
+    } catch (error) {
+        showToast(error.message || 'Failed to save product', 'error');
+        console.error(error);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Product';
+    }
+};
+
+const deleteProduct = async (id, name) => {
+    if (!confirm(Are you sure you want to delete product "${name}"? This action cannot be undone.)) {
+        return;
+    }
+    
+    try {
+        await API.admin.deleteProduct(id);
+        showToast('Product deleted successfully', 'success');
+        loadProducts(currentProductPage);
+    } catch (error) {
+        showToast(error.message || 'Failed to delete product', 'error');
+        console.error(error);
+    }
+};
+
+// ----------------------------------------------------
 // INIT & EVENT LISTENERS
 // ----------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
@@ -478,4 +721,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardStats();
     loadRecentOrders();
     loadOrders(1);
+    // Product Filters
+    document.getElementById('product-search').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') loadProducts(1);
+    });
+    document.getElementById('product-category-filter').addEventListener('change', () => loadProducts(1));
+    document.getElementById('product-sort').addEventListener('change', () => loadProducts(1));
+
+    loadCategoriesForSelect();
+    loadProducts(1);
 });
+
