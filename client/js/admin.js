@@ -107,7 +107,7 @@ const loadDashboardStats = async () => {
         
         // Also fetch total customers
         try {
-            const usersData = await fetchAPI('/users/admin/all');
+            const usersData = await fetchAPI('/users/all');
             document.getElementById('kpi-customers').innerText = usersData.users ? usersData.users.length : 0;
         } catch(e) {
             console.error('Could not fetch users', e);
@@ -730,3 +730,4 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRecentOrders();
     loadOrders(1);
 });
+
