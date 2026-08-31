@@ -141,12 +141,19 @@ const validateAndUseRoute = (app, path, router, routeName) => {
 // Mount API Routes with validation
 console.log('\n=== Mounting Routes ===');
 app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/cart', cartRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/promotions', promotionRoutes);
 app.use('/api', otherRoutes);
+app.use('/', otherRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/contact', contactRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -313,6 +320,7 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
 
 
 
