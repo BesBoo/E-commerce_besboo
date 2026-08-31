@@ -1111,7 +1111,7 @@ const adminAPI = {
     // Admin Products API
     async getAllProducts(params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        return await apiRequest(/products/admin/all?);
+        return await apiRequest(`/products/admin/all?${queryString}`);
     },
 
     async createProduct(productData) {
@@ -1122,14 +1122,14 @@ const adminAPI = {
     },
 
     async updateProduct(productId, productData) {
-        return await apiRequest(/products/, {
+        return await apiRequest(`/products/${productId}`, {
             method: 'PUT',
             body: JSON.stringify(productData)
         });
     },
 
     async deleteProduct(productId) {
-        return await apiRequest(/products/, {
+        return await apiRequest(`/products/${productId}`, {
             method: 'DELETE'
         });
     }
@@ -1348,5 +1348,6 @@ window.Utils = {
     setAuth,
     clearAuth
 };
+
 
 
