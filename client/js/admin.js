@@ -127,7 +127,7 @@ const renderCharts = (data) => {
     const ctxRevenue = document.getElementById('revenueChart');
     if (charts.revenue) charts.revenue.destroy();
     
-    const labels = monthly_revenue.map(item => `Tháng ${item.month}/${item.year}`).reverse();
+    const labels = monthly_revenue.map(item => `Thï¿½ng ${item.month}/${item.year}`).reverse();
     const revenues = monthly_revenue.map(item => item.revenue).reverse();
     const orders = monthly_revenue.map(item => item.order_count).reverse();
     
@@ -435,9 +435,9 @@ const loadProducts = async (page = 1) => {
         const categoryFilter = document.getElementById('product-category-filter').value;
         const sortFilter = document.getElementById('product-sort').value;
         
-        let query = /products/admin/all?page=${page}&limit=10&sort=${sortFilter};
-        if (searchQuery) query += &search=${encodeURIComponent(searchQuery)};
-        if (categoryFilter) query += &category=${encodeURIComponent(categoryFilter)};
+        let query = `/products/admin/all?page=${page}&limit=10&sort=${sortFilter}`;
+        if (searchQuery) query += `&search=${encodeURIComponent(searchQuery)}`;
+        if (categoryFilter) query += `&category=${encodeURIComponent(categoryFilter)}`;
         
         const data = await API.admin.getAllProducts({
             page, limit: 10, sort: sortFilter, search: searchQuery, category: categoryFilter
@@ -453,7 +453,7 @@ const loadProducts = async (page = 1) => {
             return;
         }
         
-        document.getElementById('total-products-count').innerText = Total: $;
+        document.getElementById('total-products-count').innerText = `Total: ${data.pagination.total_products}`;
         
         data.products.forEach(product => {
             const tr = document.createElement('tr');
@@ -464,8 +464,8 @@ const loadProducts = async (page = 1) => {
             if (!badges && product.stock > 0) badges = '<span class="badge" style="background:#e2e8f0; color:#4a5568">Normal</span>';
             if (product.stock <= 0) badges = '<span class="badge badge-cancelled">Out of Stock</span>';
             
-            tr.innerHTML = 
-                <td><img src="${product.image_url}" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+            tr.innerHTML = `
+                <td><img src="${product.image_url}" alt="${product.name.replace(/"/g, '&quot;')}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
                 <td>
                     <div style="font-weight: 500;">${product.name}</div>
                     <div style="font-size: 0.8rem; color: #718096;">${product.brand || 'No Brand'}</div>
@@ -478,7 +478,7 @@ const loadProducts = async (page = 1) => {
                     <button class="btn btn-outline btn-sm" onclick="editProduct(${product.product_id})" title="Edit"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-outline btn-sm" onclick="deleteProduct(${product.product_id}, '${product.name.replace(/'/g, "\\'")}')" title="Delete" style="color: var(--danger); border-color: #fbd5e5;"><i class="fas fa-trash"></i></button>
                 </td>
-            ;
+            `;
             tbody.appendChild(tr);
         });
         
@@ -496,7 +496,7 @@ const renderProductPagination = (pagination) => {
     if (!pagination || pagination.total_pages <= 1) return;
     for (let i = 1; i <= pagination.total_pages; i++) {
         const btn = document.createElement('button');
-        btn.className = page-btn $;
+        btn.className = `page-btn ${i === pagination.current_page ? 'active' : ''}`;
         btn.innerText = i;
         btn.onclick = () => loadProducts(i);
         container.appendChild(btn);
@@ -510,9 +510,7 @@ const loadCategoriesForSelect = async () => {
         const modalSelect = document.getElementById('product-category');
         
         data.categories.forEach(cat => {
-            // Filter dropdown uses category name as value in the API
             filterSelect.add(new Option(cat.name, cat.name));
-            // Modal uses category_id
             modalSelect.add(new Option(cat.name, cat.category_id));
         });
     } catch (error) {
@@ -552,7 +550,7 @@ const editProduct = async (id) => {
         const product = response.product || response;
         
         currentEditingProductId = id;
-        document.getElementById('product-modal-title').innerText = Edit Product #${id};
+        document.getElementById('product-modal-title').innerText = `Edit Product #${id}`;
         document.getElementById('product-id').value = id;
         
         document.getElementById('product-name').value = product.name || '';
@@ -651,7 +649,7 @@ const saveProduct = async () => {
 };
 
 const deleteProduct = async (id, name) => {
-    if (!confirm(Are you sure you want to delete product "${name}"? This action cannot be undone.)) {
+    if (!confirm(`Are you sure you want to delete product "${name}"? This action cannot be undone.`)) {
         return;
     }
     
@@ -711,6 +709,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filters
     document.getElementById('btn-apply-order-filters').addEventListener('click', () => {
         loadOrders(1);
+    // Product Filters
+    document.getElementById('product-search').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') loadProducts(1);
+    });
+    document.getElementById('product-category-filter').addEventListener('change', () => loadProducts(1));
+    document.getElementById('product-sort').addEventListener('change', () => loadProducts(1));
+
+    loadCategoriesForSelect();
+    loadProducts(1);
+
     });
     document.getElementById('dashboard-date-filter').addEventListener('change', () => {
         showToast('Date filter applied');
@@ -721,14 +729,4 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardStats();
     loadRecentOrders();
     loadOrders(1);
-    // Product Filters
-    document.getElementById('product-search').addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') loadProducts(1);
-    });
-    document.getElementById('product-category-filter').addEventListener('change', () => loadProducts(1));
-    document.getElementById('product-sort').addEventListener('change', () => loadProducts(1));
-
-    loadCategoriesForSelect();
-    loadProducts(1);
 });
-
