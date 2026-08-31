@@ -318,6 +318,64 @@
                     </div>
                 </div>
 
+                
+                <!-- ================== PRODUCTS TAB ================== -->
+                <div class="tab-content" id="products-tab">
+                    <div class="filters-row">
+                        <div style="flex: 2;">
+                            <input type="text" id="product-search" class="form-control" placeholder="Search by Product Name, Brand...">
+                        </div>
+                        <div>
+                            <select id="product-category-filter" class="form-control">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select id="product-sort" class="form-control">
+                                <option value="newest">Newest First</option>
+                                <option value="price-asc">Price: Low to High</option>
+                                <option value="price-desc">Price: High to Low</option>
+                                <option value="stock-asc">Stock: Low to High</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" style="width: 100%;" onclick="openProductModal()">
+                                <i class="fas fa-plus"></i> Add Product
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Product Management</div>
+                            <span id="total-products-count" style="color: #718096; font-size: 0.9rem;">Total: 0</span>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="table-responsive">
+                                <table class="table" id="products-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Name</th>
+                                            <th>Category</th>
+                                            <th>Price</th>
+                                            <th>Stock</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="products-table-body">
+                                        <tr><td colspan="7" class="text-center">Loading products...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pagination" id="products-pagination" style="padding: 20px;">
+                                <!-- Dynamic Pagination -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ================== ORDERS TAB ================== -->
                 <div class="tab-content" id="orders-tab">
                     <div class="filters-row">
