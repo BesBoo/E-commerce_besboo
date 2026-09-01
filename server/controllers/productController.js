@@ -143,8 +143,9 @@ const productController = {
             let paramIndex = 1;
             
             if (category) {
-                whereConditions.push(`c.name = $${paramIndex++}`);
-                params.push(category);
+                whereConditions.push(`(c.name = ${paramIndex} OR c.category_id::text = ${paramIndex})`);
+                params.push(category.toString());
+                paramIndex++;
             }
             
             if (search) {
