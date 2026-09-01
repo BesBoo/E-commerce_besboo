@@ -290,6 +290,29 @@ const Product3DPreview = (() => {
                 background: rgba(255, 255, 255, 0.35);
                 transform: translate(-50%, -50%) scale(1.05);
             }
+        
+            .global-3d-loading {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                color: #fff;
+                font-family: var(--font-body, sans-serif);
+                font-weight: 600;
+                z-index: 10000;
+                gap: 15px;
+            }
+            .global-3d-loading .spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid rgba(255,255,255,0.3);
+                border-top: 4px solid #fff;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
         `;
         document.head.appendChild(style);
     }

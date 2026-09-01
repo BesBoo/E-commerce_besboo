@@ -607,7 +607,7 @@
     <!-- Scripts -->
     <script src="js/product-data.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/components.js?v=5"></script>
+    <script src="js/components.js?v=6"></script>
     <script>
         // Fixed categories.html JavaScript - Show all categories first, then show products when clicked
 
@@ -624,9 +624,6 @@
 
             // Initialize shared layout (header + footer)
             Components.initLayout({ activePage: 'categories', subNavTitle: 'Danh mục' });
-
-            // Load navigation categories
-            await loadNavCategories();
 
             // Check if specific category is requested from URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -764,31 +761,7 @@
             showSingleCategoryView();
             loadCategoryData();
             loadCategoryProducts();
-        }
-
-        // Load navigation categories
-        async function loadNavCategories() {
-            try {
-                console.log('Loading navigation categories...');
-                const response = await API.categories.getCategories();
-                console.log('Categories response:', response);
-
-                const navMenu = document.getElementById('navMenu');
-
-                // Clear existing categories except home and all products
-                const existingCategories = navMenu.querySelectorAll('li:not(:first-child):not(:nth-child(2))');
-                existingCategories.forEach(li => li.remove());
-
-                // Add categories to navigation
-                if (response.categories && response.categories.length > 0) {
-                    response.categories.forEach(category => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `<a href="./categories.html?category=${category.category_id}" ${currentCategory === category.category_id ? 'class="active"' : ''}>${category.name}</a>`;
-                        navMenu.appendChild(li);
-                    });
-                }
-
-            } catch (error) {
+        }catch (error) {
                 console.error('Error loading navigation categories:', error);
                 Utils.showToast('Không thể tải danh mục', 'error');
             }
