@@ -1,25 +1,7 @@
 // Admin.js - Core logic for Admin Dashboard & Orders
 
-const API_BASE_URL = '/api';
 let currentOrders = [];
 let charts = {};
-
-// Format currency
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-};
-
-// Format date
-const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const d = new Date(dateString);
-    return d.toLocaleString('vi-VN');
-};
-
-// Get Token
-const getToken = () => {
-    return localStorage.getItem('token');
-};
 
 // Check Auth & Role
 const checkAuth = () => {
