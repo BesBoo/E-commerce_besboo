@@ -167,7 +167,7 @@ const Components = (() => {
     const reviewCount = Number(product.review_count || 0);
 
     return `
-    <article class="${cardClass}" data-product-id="${product.product_id}" onclick="location.href='./product-detail.html?id=${product.product_id}'">
+    <article class="${cardClass}" data-product-id="${product.product_id}" data-model-3d="${product.model_3d || ''}" onclick="location.href='./product-detail.html?id=${product.product_id}'">
       <div class="product-image">
         <img src="${imgSrc}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.src='./images/hero-collection.png'">
         ${product.is_new ? '<span class="product-badge new">Mới</span>' : ''}
@@ -304,6 +304,9 @@ const Components = (() => {
     // Update cart count
     API.cart.updateCartCount();
 
+    // Load 3D Preview dependencies
+    load3DLibraries();
+
     // Bind interactive events
     _bindHeaderEvents();
   }
@@ -315,6 +318,54 @@ const Components = (() => {
   }
 
   /* ─── Private: header event bindings ─── */
+  
+  /* ─── 3D Libraries Loader ─── */
+  function load3DLibraries() {
+    // Only load on Desktop to save mobile bandwidth
+    if (window.innerWidth < 768) return;
+    
+    const scriptsToLoad = [
+      'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+      'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+      'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js',
+      './js/3d-preview.js'
+    ];
+
+    let loaded = 0;
+    
+    function loadNext() {
+      if (loaded >= scriptsToLoad.length) {
+         if (typeof Product3DPreview !== 'undefined') {
+             Product3DPreview.init();
+         }
+         return;
+      }
+      const src = scriptsToLoad[loaded];
+      if (document.querySelector(`script[src="${src}"]`)) {
+          loaded++;
+          loadNext();
+          return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => {
+          loaded++;
+          loadNext();
+      };
+      script.onerror = () => {
+          console.error('Failed to load script', src);
+          loaded++;
+          loadNext();
+      };
+      document.body.appendChild(script);
+    }
+    
+    // Defer loading so it doesn't block main render
+    setTimeout(loadNext, 1000);
+  }
+
   function _bindHeaderEvents() {
     // Search toggle
     const searchToggle = document.getElementById('searchToggle');
@@ -391,3 +442,4 @@ const Components = (() => {
     renderNewsletter,
   };
 })();
+

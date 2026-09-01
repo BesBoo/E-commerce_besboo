@@ -72,7 +72,7 @@ const productController = {
 
             const query = `
                 SELECT 
-                    p.product_id, p.name, p.price, p.image_url,
+                    p.product_id, p.name, p.price, p.image_url, p.model_3d,
                     p.discount_percent, p.brand, p.stock, p.created_at,
                     c.name as category_name
                 FROM products p
@@ -185,7 +185,7 @@ const productController = {
 
             const query = `
                 SELECT 
-                    p.product_id, p.name, p.price, p.image_url,
+                    p.product_id, p.name, p.price, p.image_url, p.model_3d,
                     p.discount_percent, p.brand, p.stock, p.created_at, p.updated_at,
                     p.is_featured, p.is_new, c.name as category_name
                 FROM products p
@@ -234,7 +234,7 @@ const productController = {
             const result = await pool.query(`
                 SELECT 
                     p.product_id, p.name, p.description, p.price, p.stock,
-                    p.image_url, p.images, p.colors, p.sizes, p.brand,
+                    p.image_url, p.model_3d, p.images, p.colors, p.sizes, p.brand,
                     p.is_featured, p.is_new, p.discount_percent, p.created_at,
                     c.name as category_name, c.category_id,
                     AVG(CAST(r.rating as FLOAT)) as avg_rating,
@@ -244,7 +244,7 @@ const productController = {
                 LEFT JOIN reviews r ON p.product_id = r.product_id
                 WHERE p.product_id = $1
                 GROUP BY p.product_id, p.name, p.description, p.price, p.stock,
-                         p.image_url, p.images, p.colors, p.sizes, p.brand,
+                         p.image_url, p.model_3d, p.images, p.colors, p.sizes, p.brand,
                          p.is_featured, p.is_new, p.discount_percent, p.created_at,
                          c.name, c.category_id
             `, [parseInt(productId)]);
@@ -276,7 +276,7 @@ const productController = {
             const pool = getPool();
             const result = await pool.query(`
                 SELECT 
-                    p.product_id, p.name, p.price, p.image_url, p.discount_percent,
+                    p.product_id, p.name, p.price, p.image_url, p.model_3d, p.discount_percent,
                     p.brand, c.name as category_name, p.stock,
                     COALESCE(AVG(CAST(r.rating as FLOAT)), 0) as avg_rating,
                     COUNT(r.review_id) as review_count
@@ -285,7 +285,7 @@ const productController = {
                 LEFT JOIN reviews r ON p.product_id = r.product_id
                 WHERE p.stock > 0 
                 GROUP BY 
-                    p.product_id, p.name, p.price, p.image_url, p.discount_percent, 
+                    p.product_id, p.name, p.price, p.image_url, p.model_3d, p.discount_percent, 
                     p.brand, c.name, p.stock
                 HAVING COUNT(r.review_id) > 0 OR AVG(CAST(r.rating as FLOAT)) >= 4
                 ORDER BY 
@@ -312,7 +312,7 @@ const productController = {
             const pool = getPool();
             const result = await pool.query(`
                 SELECT 
-                    p.product_id, p.name, p.price, p.image_url, p.discount_percent,
+                    p.product_id, p.name, p.price, p.image_url, p.model_3d, p.discount_percent,
                     p.brand, c.name as category_name, p.stock, p.created_at
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
@@ -457,3 +457,4 @@ const productController = {
 };
 
 module.exports = productController;
+

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { getPool, sql } = require('../config/db');
+const { getPool } = require('../config/db');
 const { authenticateToken, requireAdmin, requireUser } = require('../middleware/auth');
 
 const router = express.Router();
@@ -13,7 +13,7 @@ const router = express.Router();
 router.get('/categories', async (req, res) => {
     try {
         const pool = getPool();
-        const result = await pool.request().query(`
+        const result = await pool.query(`
             SELECT c.*, COUNT(p.product_id) as product_count
             FROM categories c
             LEFT JOIN products p ON c.category_id = p.category_id
@@ -21,7 +21,7 @@ router.get('/categories', async (req, res) => {
             ORDER BY c.name
         `);
 
-        res.json({ categories: result.recordset });
+        res.json({ categories: result.rows });
     } catch (error) {
         console.error('Get categories error:', error);
         res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -41,19 +41,15 @@ router.post('/categories',
             const { name, description, image_url } = req.body;
             const pool = getPool();
 
-            const result = await pool.request()
-                .input('name', sql.NVarChar, name)
-                .input('description', sql.NVarChar, description)
-                .input('image_url', sql.NVarChar, image_url)
-                .query(`
-                    INSERT INTO categories (name, description, image_url)
-                    OUTPUT INSERTED.category_id
-                    VALUES (@name, @description, @image_url)
-                `);
+            const result = await pool.query(`
+                INSERT INTO categories (name, description, image_url)
+                VALUES ($1, $2, $3)
+                RETURNING category_id
+            `, [name, description, image_url]);
 
             res.status(201).json({
                 message: 'Tạo danh mục thành công',
-                category_id: result.recordset[0].category_id
+                category_id: result.rows[0].category_id
             });
         } catch (error) {
             console.error('Create category error:', error);
@@ -70,20 +66,18 @@ router.post('/categories',
 router.get('/cart', authenticateToken, requireUser, async (req, res) => {
     try {
         const pool = getPool();
-        const result = await pool.request()
-            .input('userId', sql.Int, req.user.user_id)
-            .query(`
-                SELECT 
-                    c.cart_id, c.quantity, c.color, c.size,
-                    p.product_id, p.name, p.price, p.image_url, p.stock,
-                    p.discount_percent
-                FROM cart c
-                JOIN products p ON c.product_id = p.product_id
-                WHERE c.user_id = @userId
-                ORDER BY c.created_at DESC
-            `);
+        const result = await pool.query(`
+            SELECT 
+                c.cart_id, c.quantity, c.color, c.size,
+                p.product_id, p.name, p.price, p.image_url, p.stock,
+                p.discount_percent
+            FROM cart c
+            JOIN products p ON c.product_id = p.product_id
+            WHERE c.user_id = $1
+            ORDER BY c.created_at DESC
+        `, [req.user.user_id]);
 
-        const cartItems = result.recordset.map(item => ({
+        const cartItems = result.rows.map(item => ({
             ...item,
             subtotal: item.price * item.quantity * (1 - item.discount_percent / 100)
         }));
@@ -117,15 +111,16 @@ router.post('/cart',
             const pool = getPool();
 
             // Kiểm tra sản phẩm tồn tại và còn hàng
-            const productResult = await pool.request()
-                .input('productId', sql.Int, product_id)
-                .query('SELECT stock, name FROM products WHERE product_id = @productId');
+            const productResult = await pool.query(
+                'SELECT stock, name FROM products WHERE product_id = $1', 
+                [product_id]
+            );
 
-            if (productResult.recordset.length === 0) {
+            if (productResult.rows.length === 0) {
                 return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
             }
 
-            const product = productResult.recordset[0];
+            const product = productResult.rows[0];
             if (product.stock < quantity) {
                 return res.status(400).json({ 
                     message: `Sản phẩm ${product.name} không đủ hàng. Tồn kho: ${product.stock}` 
@@ -133,46 +128,35 @@ router.post('/cart',
             }
 
             // Kiểm tra sản phẩm đã có trong giỏ hàng chưa
-            const existingResult = await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .input('productId', sql.Int, product_id)
-                .input('color', sql.NVarChar, color || null)
-                .input('size', sql.NVarChar, size || null)
-                .query(`
-                    SELECT cart_id, quantity FROM cart 
-                    WHERE user_id = @userId AND product_id = @productId 
-                    AND ISNULL(color, '') = ISNULL(@color, '')
-                    AND ISNULL(size, '') = ISNULL(@size, '')
-                `);
+            const existingResult = await pool.query(`
+                SELECT cart_id, quantity FROM cart 
+                WHERE user_id = $1 AND product_id = $2 
+                AND COALESCE(color, '') = COALESCE($3, '')
+                AND COALESCE(size, '') = COALESCE($4, '')
+            `, [req.user.user_id, product_id, color || null, size || null]);
 
-            if (existingResult.recordset.length > 0) {
+            if (existingResult.rows.length > 0) {
                 // Cập nhật số lượng
-                const newQuantity = existingResult.recordset[0].quantity + quantity;
+                const newQuantity = existingResult.rows[0].quantity + quantity;
                 if (newQuantity > product.stock) {
                     return res.status(400).json({ 
                         message: `Tổng số lượng vượt quá tồn kho. Tồn kho: ${product.stock}` 
                     });
                 }
 
-                await pool.request()
-                    .input('cartId', sql.Int, existingResult.recordset[0].cart_id)
-                    .input('newQuantity', sql.Int, newQuantity)
-                    .query('UPDATE cart SET quantity = @newQuantity, updated_at = GETDATE() WHERE cart_id = @cartId');
+                await pool.query(
+                    'UPDATE cart SET quantity = $1, updated_at = NOW() WHERE cart_id = $2',
+                    [newQuantity, existingResult.rows[0].cart_id]
+                );
             } else {
                 // Thêm mới
-                await pool.request()
-                    .input('userId', sql.Int, req.user.user_id)
-                    .input('productId', sql.Int, product_id)
-                    .input('quantity', sql.Int, quantity)
-                    .input('color', sql.NVarChar, color || null)
-                    .input('size', sql.NVarChar, size || null)
-                    .query(`
-                        INSERT INTO cart (user_id, product_id, quantity, color, size)
-                        VALUES (@userId, @productId, @quantity, @color, @size)
-                    `);
+                await pool.query(`
+                    INSERT INTO cart (user_id, product_id, quantity, color, size)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [req.user.user_id, product_id, quantity, color || null, size || null]);
             }
 
-            res.json({ message: 'Thêm vào giỏ hàng thành công' });
+            res.json({ message: 'Thêm vào giỏ hàng thành công', success: true });
         } catch (error) {
             console.error('Add to cart error:', error);
             res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -193,31 +177,28 @@ router.put('/cart/:cartId', authenticateToken, requireUser, async (req, res) => 
         const pool = getPool();
 
         // Kiểm tra cart item thuộc về user
-        const cartResult = await pool.request()
-            .input('cartId', sql.Int, cartId)
-            .input('userId', sql.Int, req.user.user_id)
-            .query(`
-                SELECT c.product_id, p.stock, p.name
-                FROM cart c
-                JOIN products p ON c.product_id = p.product_id
-                WHERE c.cart_id = @cartId AND c.user_id = @userId
-            `);
+        const cartResult = await pool.query(`
+            SELECT c.product_id, p.stock, p.name
+            FROM cart c
+            JOIN products p ON c.product_id = p.product_id
+            WHERE c.cart_id = $1 AND c.user_id = $2
+        `, [cartId, req.user.user_id]);
 
-        if (cartResult.recordset.length === 0) {
+        if (cartResult.rows.length === 0) {
             return res.status(404).json({ message: 'Sản phẩm không tồn tại trong giỏ hàng' });
         }
 
-        const item = cartResult.recordset[0];
+        const item = cartResult.rows[0];
         if (quantity > item.stock) {
             return res.status(400).json({ 
                 message: `Sản phẩm ${item.name} không đủ hàng. Tồn kho: ${item.stock}` 
             });
         }
 
-        await pool.request()
-            .input('cartId', sql.Int, cartId)
-            .input('quantity', sql.Int, quantity)
-            .query('UPDATE cart SET quantity = @quantity, updated_at = GETDATE() WHERE cart_id = @cartId');
+        await pool.query(
+            'UPDATE cart SET quantity = $1, updated_at = NOW() WHERE cart_id = $2',
+            [quantity, cartId]
+        );
 
         res.json({ message: 'Cập nhật giỏ hàng thành công' });
     } catch (error) {
@@ -232,10 +213,10 @@ router.delete('/cart/:cartId', authenticateToken, requireUser, async (req, res) 
         const { cartId } = req.params;
         const pool = getPool();
 
-        await pool.request()
-            .input('cartId', sql.Int, cartId)
-            .input('userId', sql.Int, req.user.user_id)
-            .query('DELETE FROM cart WHERE cart_id = @cartId AND user_id = @userId');
+        await pool.query(
+            'DELETE FROM cart WHERE cart_id = $1 AND user_id = $2',
+            [cartId, req.user.user_id]
+        );
 
         res.json({ message: 'Xóa sản phẩm khỏi giỏ hàng thành công' });
     } catch (error) {
@@ -248,9 +229,10 @@ router.delete('/cart/:cartId', authenticateToken, requireUser, async (req, res) 
 router.delete('/cart', authenticateToken, requireUser, async (req, res) => {
     try {
         const pool = getPool();
-        await pool.request()
-            .input('userId', sql.Int, req.user.user_id)
-            .query('DELETE FROM cart WHERE user_id = @userId');
+        await pool.query(
+            'DELETE FROM cart WHERE user_id = $1',
+            [req.user.user_id]
+        );
 
         res.json({ message: 'Xóa toàn bộ giỏ hàng thành công' });
     } catch (error) {
@@ -267,25 +249,23 @@ router.delete('/cart', authenticateToken, requireUser, async (req, res) => {
 router.get('/favorites', authenticateToken, requireUser, async (req, res) => {
     try {
         const pool = getPool();
-        const result = await pool.request()
-            .input('userId', sql.Int, req.user.user_id)
-            .query(`
-                SELECT 
-                    f.favorite_id, f.created_at,
-                    p.product_id, p.name, p.price, p.image_url, p.discount_percent,
-                    c.name as category_name,
-                    AVG(CAST(r.rating as FLOAT)) as avg_rating
-                FROM favorites f
-                JOIN products p ON f.product_id = p.product_id
-                LEFT JOIN categories c ON p.category_id = c.category_id
-                LEFT JOIN reviews r ON p.product_id = r.product_id
-                WHERE f.user_id = @userId
-                GROUP BY f.favorite_id, f.created_at, p.product_id, p.name, 
-                         p.price, p.image_url, p.discount_percent, c.name
-                ORDER BY f.created_at DESC
-            `);
+        const result = await pool.query(`
+            SELECT 
+                f.favorite_id, f.created_at,
+                p.product_id, p.name, p.price, p.image_url, p.discount_percent,
+                c.name as category_name,
+                AVG(CAST(r.rating as FLOAT)) as avg_rating
+            FROM favorites f
+            JOIN products p ON f.product_id = p.product_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            LEFT JOIN reviews r ON p.product_id = r.product_id
+            WHERE f.user_id = $1
+            GROUP BY f.favorite_id, f.created_at, p.product_id, p.name, 
+                     p.price, p.image_url, p.discount_percent, c.name
+            ORDER BY f.created_at DESC
+        `, [req.user.user_id]);
 
-        res.json({ favorites: result.recordset });
+        res.json({ favorites: result.rows });
     } catch (error) {
         console.error('Get favorites error:', error);
         res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -299,33 +279,35 @@ router.post('/favorites/:productId', authenticateToken, requireUser, async (req,
         const pool = getPool();
 
         // Kiểm tra sản phẩm tồn tại
-        const productCheck = await pool.request()
-            .input('productId', sql.Int, productId)
-            .query('SELECT product_id FROM products WHERE product_id = @productId');
+        const productCheck = await pool.query(
+            'SELECT product_id FROM products WHERE product_id = $1',
+            [productId]
+        );
 
-        if (productCheck.recordset.length === 0) {
+        if (productCheck.rows.length === 0) {
             return res.status(404).json({ message: 'Sản phẩm không tồn tại' });
         }
 
         // Kiểm tra đã yêu thích chưa
-        const favoriteCheck = await pool.request()
-            .input('userId', sql.Int, req.user.user_id)
-            .input('productId', sql.Int, productId)
-            .query('SELECT favorite_id FROM favorites WHERE user_id = @userId AND product_id = @productId');
+        const favoriteCheck = await pool.query(
+            'SELECT favorite_id FROM favorites WHERE user_id = $1 AND product_id = $2',
+            [req.user.user_id, productId]
+        );
 
-        if (favoriteCheck.recordset.length > 0) {
+        if (favoriteCheck.rows.length > 0) {
             // Xóa khỏi yêu thích
-            await pool.request()
-                .input('favoriteId', sql.Int, favoriteCheck.recordset[0].favorite_id)
-                .query('DELETE FROM favorites WHERE favorite_id = @favoriteId');
+            await pool.query(
+                'DELETE FROM favorites WHERE favorite_id = $1',
+                [favoriteCheck.rows[0].favorite_id]
+            );
             
             res.json({ message: 'Đã xóa khỏi danh sách yêu thích', is_favorite: false });
         } else {
             // Thêm vào yêu thích
-            await pool.request()
-                .input('userId', sql.Int, req.user.user_id)
-                .input('productId', sql.Int, productId)
-                .query('INSERT INTO favorites (user_id, product_id) VALUES (@userId, @productId)');
+            await pool.query(
+                'INSERT INTO favorites (user_id, product_id) VALUES ($1, $2)',
+                [req.user.user_id, productId]
+            );
             
             res.json({ message: 'Đã thêm vào danh sách yêu thích', is_favorite: true });
         }
@@ -343,18 +325,18 @@ router.post('/favorites/:productId', authenticateToken, requireUser, async (req,
 router.get('/promotions', async (req, res) => {
     try {
         const pool = getPool();
-        const result = await pool.request().query(`
+        const result = await pool.query(`
             SELECT code, discount_type, discount_value, min_order_amount, 
                    start_date, end_date, usage_limit, used_count
             FROM promotions
-            WHERE is_active = 1
-            AND (start_date IS NULL OR start_date <= GETDATE())
-            AND (end_date IS NULL OR end_date >= GETDATE())
+            WHERE is_active = true
+            AND (start_date IS NULL OR start_date <= NOW())
+            AND (end_date IS NULL OR end_date >= NOW())
             AND (usage_limit IS NULL OR used_count < usage_limit)
             ORDER BY discount_value DESC
         `);
 
-        res.json({ promotions: result.recordset });
+        res.json({ promotions: result.rows });
     } catch (error) {
         console.error('Get promotions error:', error);
         res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -371,21 +353,19 @@ router.post('/promotions/validate', authenticateToken, requireUser, async (req, 
         }
 
         const pool = getPool();
-        const result = await pool.request()
-            .input('code', sql.NVarChar, code)
-            .query(`
-                SELECT discount_type, discount_value, min_order_amount, usage_limit, used_count
-                FROM promotions
-                WHERE code = @code AND is_active = 1
-                AND (start_date IS NULL OR start_date <= GETDATE())
-                AND (end_date IS NULL OR end_date >= GETDATE())
-            `);
+        const result = await pool.query(`
+            SELECT discount_type, discount_value, min_order_amount, usage_limit, used_count
+            FROM promotions
+            WHERE code = $1 AND is_active = true
+            AND (start_date IS NULL OR start_date <= NOW())
+            AND (end_date IS NULL OR end_date >= NOW())
+        `, [code]);
 
-        if (result.recordset.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(400).json({ message: 'Mã khuyến mãi không tồn tại hoặc đã hết hạn' });
         }
 
-        const promotion = result.recordset[0];
+        const promotion = result.rows[0];
 
         if (promotion.usage_limit && promotion.used_count >= promotion.usage_limit) {
             return res.status(400).json({ message: 'Mã khuyến mãi đã hết lượt sử dụng' });
@@ -434,28 +414,20 @@ router.post('/promotions',
             const pool = getPool();
             
             // Kiểm tra mã đã tồn tại
-            const existingCode = await pool.request()
-                .input('code', sql.NVarChar, code)
-                .query('SELECT code FROM promotions WHERE code = @code');
+            const existingCode = await pool.query(
+                'SELECT code FROM promotions WHERE code = $1',
+                [code]
+            );
 
-            if (existingCode.recordset.length > 0) {
+            if (existingCode.rows.length > 0) {
                 return res.status(400).json({ message: 'Mã khuyến mãi đã tồn tại' });
             }
 
-            await pool.request()
-                .input('code', sql.NVarChar, code)
-                .input('discount_type', sql.NVarChar, discount_type)
-                .input('discount_value', sql.Int, discount_value)
-                .input('min_order_amount', sql.Decimal(18,2), min_order_amount || 0)
-                .input('start_date', sql.DateTime, start_date || null)
-                .input('end_date', sql.DateTime, end_date || null)
-                .input('usage_limit', sql.Int, usage_limit || null)
-                .query(`
-                    INSERT INTO promotions (code, discount_type, discount_value, min_order_amount, 
-                                          start_date, end_date, usage_limit)
-                    VALUES (@code, @discount_type, @discount_value, @min_order_amount,
-                           @start_date, @end_date, @usage_limit)
-                `);
+            await pool.query(`
+                INSERT INTO promotions (code, discount_type, discount_value, min_order_amount, 
+                                      start_date, end_date, usage_limit)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [code, discount_type, discount_value, min_order_amount || 0, start_date || null, end_date || null, usage_limit || null]);
 
             res.status(201).json({ message: 'Tạo mã khuyến mãi thành công' });
         } catch (error) {
