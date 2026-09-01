@@ -709,6 +709,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filters
     document.getElementById('btn-apply-order-filters').addEventListener('click', () => {
         loadOrders(1);
+    });
+    
     // Product Filters
     document.getElementById('product-search').addEventListener('keyup', (e) => {
         if (e.key === 'Enter') loadProducts(1);
@@ -719,7 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCategoriesForSelect();
     loadProducts(1);
 
-    });
     document.getElementById('dashboard-date-filter').addEventListener('change', () => {
         showToast('Date filter applied');
         // In real app, reload stats with date params
