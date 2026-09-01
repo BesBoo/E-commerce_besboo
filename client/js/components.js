@@ -170,6 +170,7 @@ const Components = (() => {
     <article class="${cardClass}" data-product-id="${product.product_id}" data-model-3d="${product.model_3d || ''}" onclick="location.href='./product-detail.html?id=${product.product_id}'">
       <div class="product-image">
         <img src="${imgSrc}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.src='./images/hero-collection.png'">
+        ${product.model_3d ? `<button class="view-3d-btn" type="button" aria-label="Xem 3D" onclick="event.stopPropagation(); if(window.Product3DPreview) window.Product3DPreview.openModal(this.closest('.product-card'))"><i class="fas fa-cube"></i> Xem 3D</button>` : ''}
         ${product.is_new ? '<span class="product-badge new">Mới</span>' : ''}
         ${product.is_featured ? '<span class="product-badge featured">Nổi bật</span>' : ''}
         ${discount ? `<span class="product-badge sale">-${product.discount_percent}%</span>` : ''}

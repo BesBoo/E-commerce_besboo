@@ -249,34 +249,51 @@ const Product3DPreview = (() => {
   }
 
   function init() {
-    if (window.innerWidth < 768) return; 
-
-    document.addEventListener('mouseover', (e) => {
-        if (!e.target || typeof e.target.closest !== 'function') return;
-        const card = e.target.closest('.product-card');
-        if (!card) return;
-        
-        if (e.relatedTarget && card.contains(e.relatedTarget)) return;
-
-        clearTimeout(hoverTimeout);
-        hoverTimeout = setTimeout(() => {
-            const modelUrl = card.getAttribute('data-model-3d');
-            if (modelUrl && modelUrl.trim() !== '') {
-                openModal(card);
+    // Only insert CSS once
+    if (!document.getElementById('view-3d-btn-styles')) {
+        const style = document.createElement('style');
+        style.id = 'view-3d-btn-styles';
+        style.innerHTML = `
+            .product-card .product-image {
+                position: relative;
             }
-        }, 3000); 
-    });
-
-    document.addEventListener('mouseout', (e) => {
-        if (!e.target || typeof e.target.closest !== 'function') return;
-        const card = e.target.closest('.product-card');
-        if (!card) return;
-
-        if (e.relatedTarget && card.contains(e.relatedTarget)) return;
-
-        clearTimeout(hoverTimeout);
-    });
+            .product-card .view-3d-btn {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                color: #fff;
+                padding: 10px 18px;
+                border-radius: 30px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                opacity: 0;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                z-index: 10;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                pointer-events: none; /* Ignore pointer events when invisible */
+            }
+            .product-card:hover .view-3d-btn {
+                opacity: 1;
+                pointer-events: auto; /* Enable when visible */
+            }
+            .product-card .view-3d-btn:hover {
+                background: rgba(255, 255, 255, 0.35);
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        `;
+        document.head.appendChild(style);
+    }
   }
 
-  return { init };
+  return { init, openModal };
 })();
