@@ -297,3 +297,5 @@ const Product3DPreview = (() => {
 
   return { init, openModal };
 })();
+
+window.Product3DPreview = Product3DPreview;
