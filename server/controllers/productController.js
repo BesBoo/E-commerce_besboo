@@ -143,12 +143,12 @@ const productController = {
             let paramIndex = 1;
             
             if (category) {
-                whereConditions.push(`c.name = ${paramIndex++}`);
+                whereConditions.push(`c.name = $${paramIndex++}`);
                 params.push(category);
             }
             
             if (search) {
-                whereConditions.push(`(p.name ILIKE ${paramIndex} OR p.brand ILIKE ${paramIndex})`);
+                whereConditions.push(`(p.name ILIKE $${paramIndex} OR p.brand ILIKE $${paramIndex})`);
                 params.push(`%${search}%`);
                 paramIndex++;
             }
@@ -192,7 +192,7 @@ const productController = {
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 WHERE ${whereConditions.join(' AND ')}
                 ORDER BY ${orderBy}
-                LIMIT ${paramIndex++} OFFSET ${paramIndex++}
+                LIMIT $${paramIndex++} OFFSET $${paramIndex++}
             `;
             
             params.push(parseInt(limit), offset);
