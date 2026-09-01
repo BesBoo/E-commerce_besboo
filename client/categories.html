@@ -607,7 +607,7 @@
     <!-- Scripts -->
     <script src="js/product-data.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/components.js?v=6"></script>
+    <script src="js/components.js?v=7"></script>
     <script>
         // Fixed categories.html JavaScript - Show all categories first, then show products when clicked
 
@@ -761,10 +761,6 @@
             showSingleCategoryView();
             loadCategoryData();
             loadCategoryProducts();
-        }catch (error) {
-                console.error('Error loading navigation categories:', error);
-                Utils.showToast('Không thể tải danh mục', 'error');
-            }
         }
 
         // Load category data
