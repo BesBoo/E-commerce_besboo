@@ -607,7 +607,7 @@
     <!-- Scripts -->
     <script src="js/product-data.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/components.js?v=7"></script>
+    <script src="js/components.js?v=8"></script>
     <script>
         // Fixed categories.html JavaScript - Show all categories first, then show products when clicked
 
@@ -1190,9 +1190,9 @@
             }
 
             // Back to categories button
-            const backToCategories = document.getElementById('backToCategories');
-            if (backToCategories) {
-                backToCategories.addEventListener('click', (e) => {
+            const backBtn = document.getElementById('backToCategories');
+            if (backBtn) {
+                backBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     backToCategories();
                 });
