@@ -55,24 +55,6 @@ const fetchAPI = async (endpoint, options = {}) => {
 };
 
 // Show Toast Notification
-const showToast = (message, type = 'success') => {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerText = message;
-    
-    container.appendChild(toast);
-    
-    // Trigger animation
-    setTimeout(() => toast.classList.add('show'), 10);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-};
-
 // ----------------------------------------------------
 // DASHBOARD LOGIC
 // ----------------------------------------------------
